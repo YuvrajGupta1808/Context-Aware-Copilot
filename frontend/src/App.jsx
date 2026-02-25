@@ -1,23 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-// Icons as simple SVG components
+const WS_URL = 'ws://localhost:8080'
+const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+
 const MicIcon = ({ muted }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     {muted ? (
-      <>
-        <line x1="1" y1="1" x2="23" y2="23" />
-        <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
-        <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
-        <line x1="12" y1="19" x2="12" y2="23" />
-        <line x1="8" y1="23" x2="16" y2="23" />
-      </>
+      <><line x1="1" y1="1" x2="23" y2="23" /><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" /><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></>
     ) : (
-      <>
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-        <line x1="12" y1="19" x2="12" y2="23" />
-        <line x1="8" y1="23" x2="16" y2="23" />
-      </>
+      <><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></>
     )}
   </svg>
 )
@@ -25,119 +16,72 @@ const MicIcon = ({ muted }) => (
 const VideoIcon = ({ off }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     {off ? (
-      <>
-        <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
-        <line x1="1" y1="1" x2="23" y2="23" />
-      </>
+      <><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" /><line x1="1" y1="1" x2="23" y2="23" /></>
     ) : (
-      <>
-        <polygon points="23 7 16 12 23 17 23 7" />
-        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-      </>
+      <><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></>
     )}
   </svg>
 )
 
-const ScreenShareIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-    <line x1="8" y1="21" x2="16" y2="21" />
-    <line x1="12" y1="17" x2="12" y2="21" />
-  </svg>
-)
+const ScreenShareIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>)
+const UsersIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>)
+const ChatIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>)
+const RecordIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" fill="currentColor" /></svg>)
 
-const UsersIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-)
+const mockSummary = ['Discussion about project timeline', 'Target completion by Wednesday', 'Follow-up meeting scheduled']
 
-const ChatIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-  </svg>
-)
+function ParticipantVideo({ participant, stream, isYou, isLarge }) {
+  const videoRef = useRef(null)
+  const initials = participant.name.split(' ').map(n => n[0]).join('').toUpperCase()
 
-const RecordIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10" />
-    <circle cx="12" cy="12" r="3" fill="currentColor" />
-  </svg>
-)
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream
+    }
+  }, [stream])
 
-const EndCallIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-    <line x1="1" y1="1" x2="23" y2="23" />
-  </svg>
-)
-
-const ChevronIcon = ({ direction }) => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    {direction === 'up' ? (
-      <polyline points="18 15 12 9 6 15" />
-    ) : (
-      <polyline points="6 9 12 15 18 9" />
-    )}
-  </svg>
-)
-
-// Mock transcript data
-const mockTranscripts = [
-  { id: 1, speaker: 'Mike Wilner', time: '10:23', text: "I'll get back to you regarding your proposal after I've discussed it internally." },
-  { id: 2, speaker: 'Anna Ericson', time: '10:24', text: 'Do you think you\'ll get around to that next week?' },
-  { id: 3, speaker: 'Mike Wilner', time: '10:25', text: 'Yes, I think we can manage it by Wednesday.' },
-  { id: 4, speaker: 'Anna Ericson', time: '10:26', text: "Fantastic! Let's schedule our next meeting for Thursday then." },
-  { id: 5, speaker: 'Jennifer Burton', time: '10:27', text: 'I can prepare the presentation slides by then.' },
-]
-
-const mockSummary = [
-  'Discussion about project proposal timeline',
-  'Mike will review proposal internally',
-  'Target completion by Wednesday',
-  'Follow-up meeting scheduled for Thursday',
-  'Jennifer to prepare presentation materials',
-]
-
-const mockEmotions = [
-  { speaker: 'Mike Wilner', emotion: 'Confident', confidence: 85, color: '#22c55e' },
-  { speaker: 'Anna Ericson', emotion: 'Engaged', confidence: 92, color: '#3b82f6' },
-  { speaker: 'Jennifer Burton', emotion: 'Neutral', confidence: 78, color: '#6b7280' },
-]
-
-
-// Participant thumbnail component
-function ParticipantThumbnail({ name, isActive, isSpeaking }) {
-  const initials = name.split(' ').map(n => n[0]).join('')
-  return (
-    <div className={`relative flex flex-col items-center ${isActive ? 'ring-2 ring-green-500 rounded-lg' : ''}`}>
-      <div className={`w-24 h-16 bg-gray-700 rounded-lg flex items-center justify-center ${isSpeaking ? 'ring-2 ring-green-400' : ''}`}>
-        <span className="text-white text-sm font-medium">{initials}</span>
+  if (isLarge) {
+    return (
+      <div className="flex-1 relative bg-gray-900 flex items-center justify-center">
+        {stream && !participant.isVideoOff ? (
+          <video ref={videoRef} autoPlay playsInline muted={isYou} className="max-w-full max-h-full object-contain" style={{ maxHeight: 'calc(100vh - 200px)' }} />
+        ) : (
+          <div className="w-32 h-32 rounded-full bg-gray-700 flex items-center justify-center">
+            <span className="text-3xl text-white font-medium">{initials}</span>
+          </div>
+        )}
+        <div className="absolute bottom-4 left-4 px-3 py-1 bg-gray-800/80 rounded text-white text-sm">{participant.name}{isYou ? ' (You)' : ''}</div>
+        {participant.isMuted && <div className="absolute bottom-4 right-4 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center"><MicIcon muted={true} /></div>}
       </div>
-      <span className="text-white text-xs mt-1 truncate max-w-24">{name}</span>
+    )
+  }
+
+  return (
+    <div className={`relative flex flex-col items-center ${isYou ? 'ring-2 ring-green-500 rounded-lg p-1' : ''}`}>
+      <div className="w-32 h-24 bg-gray-700 rounded-lg flex items-center justify-center relative overflow-hidden">
+        {stream && !participant.isVideoOff ? (
+          <video ref={videoRef} autoPlay playsInline muted={isYou} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-white text-lg font-medium">{initials}</span>
+        )}
+        {participant.isMuted && <div className="absolute bottom-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><line x1="1" y1="1" x2="23" y2="23" /></svg></div>}
+      </div>
+      <span className="text-white text-xs mt-1 truncate max-w-32">{isYou ? `${participant.name} (You)` : participant.name}</span>
     </div>
   )
 }
 
-// Right panel tab content
 function TranscriptPanel({ transcripts }) {
+  if (!transcripts.length) return <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No transcripts yet</div>
   return (
     <div className="flex flex-col gap-3 p-4">
-      {transcripts.map((item) => (
-        <div key={item.id} className="flex gap-3">
+      {transcripts.map((item, i) => (
+        <div key={i} className="flex gap-3">
           <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-medium text-gray-600">
-              {item.speaker.split(' ').map(n => n[0]).join('')}
-            </span>
+            <span className="text-xs font-medium text-gray-600">{item.speaker.split(' ').map(n => n[0]).join('')}</span>
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-900 text-sm">{item.speaker}</span>
-              <span className="text-xs text-gray-400">{item.time}</span>
-            </div>
+            <div className="flex items-center gap-2"><span className="font-medium text-gray-900 text-sm">{item.speaker}</span><span className="text-xs text-gray-400">{item.time}</span></div>
             <p className="text-sm text-gray-600 mt-1">{item.text}</p>
           </div>
         </div>
@@ -146,40 +90,23 @@ function TranscriptPanel({ transcripts }) {
   )
 }
 
-function SummaryPanel({ summary }) {
+function SummaryPanel() {
   return (
-    <div className="p-4">
-      <div className="bg-blue-50 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-3">Meeting Summary</h4>
-        <ul className="space-y-2">
-          {summary.map((item, i) => (
-            <li key={i} className="flex gap-2 text-sm text-gray-700">
-              <span className="text-blue-500 flex-shrink-0">•</span>
-              {item}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <div className="p-4"><div className="bg-blue-50 rounded-lg p-4"><h4 className="font-medium text-gray-900 mb-3">Meeting Summary</h4><ul className="space-y-2">{mockSummary.map((item, i) => <li key={i} className="flex gap-2 text-sm text-gray-700"><span className="text-blue-500">•</span>{item}</li>)}</ul></div></div>
   )
 }
 
-function EmotionsPanel({ emotions }) {
+function EmotionsPanel({ participants }) {
+  if (!participants.length) return <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No participants yet</div>
+  const emotions = ['Confident', 'Engaged', 'Neutral', 'Focused']
+  const colors = ['#22c55e', '#3b82f6', '#6b7280', '#8b5cf6']
   return (
     <div className="p-4 space-y-4">
-      {emotions.map((item, i) => (
-        <div key={i} className="bg-gray-50 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-gray-900 text-sm">{item.speaker}</span>
-            <span className="text-sm" style={{ color: item.color }}>{item.emotion}</span>
-          </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className="h-full rounded-full transition-all"
-              style={{ width: `${item.confidence}%`, backgroundColor: item.color }}
-            />
-          </div>
-          <span className="text-xs text-gray-500 mt-1 block">{item.confidence}% confidence</span>
+      {participants.map((p, i) => (
+        <div key={p.odId} className="bg-gray-50 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2"><span className="font-medium text-gray-900 text-sm">{p.name}</span><span className="text-sm" style={{ color: colors[i % 4] }}>{emotions[i % 4]}</span></div>
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${75 + i * 5}%`, backgroundColor: colors[i % 4] }} /></div>
+          <span className="text-xs text-gray-500 mt-1 block">{75 + i * 5}% confidence</span>
         </div>
       ))}
     </div>
@@ -193,226 +120,181 @@ export default function App() {
   const [isInMeeting, setIsInMeeting] = useState(false)
   const [meetingTime, setMeetingTime] = useState(0)
   const [userName, setUserName] = useState('')
-  const videoRef = useRef(null)
-  const streamRef = useRef(null)
+  const [odId, setOdId] = useState(null)
+  const [participants, setParticipants] = useState([])
+  const [transcripts, setTranscripts] = useState([])
+  const [remoteStreams, setRemoteStreams] = useState({})
+  const [selectedParticipant, setSelectedParticipant] = useState(null)
+  
+  const localStreamRef = useRef(null)
+  const wsRef = useRef(null)
+  const peerConnectionsRef = useRef({})
 
-  // Timer for meeting duration
+  const createPeerConnection = useCallback((targetId) => {
+    const pc = new RTCPeerConnection(ICE_SERVERS)
+    pc.onicecandidate = (e) => {
+      if (e.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate, target: targetId }))
+      }
+    }
+    pc.ontrack = (e) => setRemoteStreams(prev => ({ ...prev, [targetId]: e.streams[0] }))
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current))
+    }
+    peerConnectionsRef.current[targetId] = pc
+    return pc
+  }, [])
+
+  const handleOffer = useCallback(async (offer, fromId) => {
+    const pc = createPeerConnection(fromId)
+    await pc.setRemoteDescription(new RTCSessionDescription(offer))
+    const answer = await pc.createAnswer()
+    await pc.setLocalDescription(answer)
+    wsRef.current?.send(JSON.stringify({ type: 'answer', answer, target: fromId }))
+  }, [createPeerConnection])
+
+  const handleAnswer = useCallback(async (answer, fromId) => {
+    const pc = peerConnectionsRef.current[fromId]
+    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer))
+  }, [])
+
+  const handleIceCandidate = useCallback(async (candidate, fromId) => {
+    const pc = peerConnectionsRef.current[fromId]
+    if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate))
+  }, [])
+
+  const connectToParticipant = useCallback(async (targetId) => {
+    const pc = createPeerConnection(targetId)
+    const offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+    wsRef.current?.send(JSON.stringify({ type: 'offer', offer, target: targetId }))
+  }, [createPeerConnection])
+
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return
+    const ws = new WebSocket(WS_URL)
+    wsRef.current = ws
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'joined') setOdId(data.odId)
+      if (data.type === 'participants') setParticipants(data.participants)
+      if (data.type === 'existing-participants') data.participants.forEach(p => connectToParticipant(p.odId))
+      if (data.type === 'offer') handleOffer(data.offer, data.from)
+      if (data.type === 'answer') handleAnswer(data.answer, data.from)
+      if (data.type === 'ice-candidate') handleIceCandidate(data.candidate, data.from)
+      if (data.type === 'user-left') {
+        if (peerConnectionsRef.current[data.odId]) {
+          peerConnectionsRef.current[data.odId].close()
+          delete peerConnectionsRef.current[data.odId]
+        }
+        setRemoteStreams(prev => { const n = { ...prev }; delete n[data.odId]; return n })
+      }
+    }
+  }, [connectToParticipant, handleOffer, handleAnswer, handleIceCandidate])
+
   useEffect(() => {
     let interval
-    if (isInMeeting) {
-      interval = setInterval(() => {
-        setMeetingTime(t => t + 1)
-      }, 1000)
-    }
+    if (isInMeeting) interval = setInterval(() => setMeetingTime(t => t + 1), 1000)
     return () => clearInterval(interval)
   }, [isInMeeting])
 
-  // Camera handling
   useEffect(() => {
-    if (isInMeeting && !isVideoOff) {
-      startCamera()
-    } else {
-      stopCamera()
+    if (wsRef.current?.readyState === WebSocket.OPEN && odId) {
+      wsRef.current.send(JSON.stringify({ type: 'update', updates: { isMuted, isVideoOff } }))
     }
-    return () => stopCamera()
-  }, [isInMeeting, isVideoOff])
+  }, [isMuted, isVideoOff, odId])
 
-  const startCamera = async () => {
+  const startMedia = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      localStreamRef.current = stream
+      return stream
+    } catch { return null }
+  }
+
+  const stopMedia = () => {
+    localStreamRef.current?.getTracks().forEach(track => track.stop())
+    localStreamRef.current = null
+    Object.values(peerConnectionsRef.current).forEach(pc => pc.close())
+    peerConnectionsRef.current = {}
+    setRemoteStreams({})
+  }
+
+  const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+
+  const joinMeeting = async () => {
+    if (!userName.trim()) return alert('Please enter your name')
+    await startMedia()
+    connectWebSocket()
+    const check = setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        clearInterval(check)
+        wsRef.current.send(JSON.stringify({ type: 'join', name: userName.trim(), isMuted, isVideoOff }))
+        setIsInMeeting(true)
+        setMeetingTime(0)
       }
-    } catch (err) {
-      console.log('Camera access denied or not available')
-    }
-  }
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-  }
-
-  const formatTime = (seconds) => {
-    const h = Math.floor(seconds / 3600)
-    const m = Math.floor((seconds % 3600) / 60)
-    const s = seconds % 60
-    if (h > 0) {
-      return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    }
-    return `${m}:${String(s).padStart(2, '0')}`
-  }
-
-  const joinMeeting = () => {
-    setIsInMeeting(true)
-    setMeetingTime(0)
+    }, 100)
+    setTimeout(() => clearInterval(check), 5000)
   }
 
   const leaveMeeting = () => {
+    wsRef.current?.send(JSON.stringify({ type: 'leave' }))
+    wsRef.current?.close()
+    stopMedia()
     setIsInMeeting(false)
-    stopCamera()
     setMeetingTime(0)
+    setParticipants([])
+    setOdId(null)
+    setSelectedParticipant(null)
   }
 
-  const tabs = [
-    { id: 'transcript', label: 'Transcript' },
-    { id: 'summary', label: 'Summary' },
-    { id: 'emotions', label: 'Emotions' },
-  ]
+  const tabs = [{ id: 'transcript', label: 'Transcript' }, { id: 'summary', label: 'Summary' }, { id: 'emotions', label: 'Emotions' }]
+  const otherParticipants = participants.filter(p => p.odId !== odId)
+  const displayParticipant = selectedParticipant ? participants.find(p => p.odId === selectedParticipant) : (otherParticipants[0] || participants.find(p => p.odId === odId))
 
 
-  // Pre-meeting join screen
   if (!isInMeeting) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center gap-16">
-        {/* Left side - App info */}
         <div className="-mt-[10%]">
           <div className="max-w-lg">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                  <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/>
-                  <path d="M12 8v4l3 3"/>
-                </svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
               </div>
               <h1 className="text-3xl font-bold text-gray-900">Emotion Copilot</h1>
             </div>
-            
-            <p className="text-xl text-gray-600 mb-8">
-              Real-time emotional intelligence for your meetings. Understand the room, improve communication, and build stronger connections.
-            </p>
-
+            <p className="text-xl text-gray-600 mb-8">Real-time emotional intelligence for your meetings.</p>
             <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Live Transcription</h3>
-                  <p className="text-gray-500 text-sm">Automatic speech-to-text with speaker identification</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9333ea" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                    <line x1="9" y1="9" x2="9.01" y2="9"/>
-                    <line x1="15" y1="9" x2="15.01" y2="9"/>
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Emotion Analysis</h3>
-                  <p className="text-gray-500 text-sm">Detect sentiment and emotional cues in real-time</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
-                    <line x1="4" y1="6" x2="20" y2="6"/>
-                    <line x1="4" y1="12" x2="14" y2="12"/>
-                    <line x1="4" y1="18" x2="18" y2="18"/>
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Smart Summaries</h3>
-                  <p className="text-gray-500 text-sm">AI-generated meeting highlights and action items</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Privacy First</h3>
-                  <p className="text-gray-500 text-sm">All processing happens locally, no data stored</p>
-                </div>
-              </div>
+              <div className="flex items-start gap-4"><div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><h3 className="font-semibold text-gray-900">Live Transcription</h3><p className="text-gray-500 text-sm">Automatic speech-to-text</p></div></div>
+              <div className="flex items-start gap-4"><div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9333ea" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg></div><div><h3 className="font-semibold text-gray-900">Emotion Analysis</h3><p className="text-gray-500 text-sm">Real-time sentiment detection</p></div></div>
+              <div className="flex items-start gap-4"><div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/></svg></div><div><h3 className="font-semibold text-gray-900">Smart Summaries</h3><p className="text-gray-500 text-sm">AI-generated highlights</p></div></div>
+              <div className="flex items-start gap-4"><div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><h3 className="font-semibold text-gray-900">Privacy First</h3><p className="text-gray-500 text-sm">Local processing only</p></div></div>
             </div>
           </div>
         </div>
-
-        {/* Right side - Join section */}
         <div>
           <div className="bg-white rounded-2xl shadow-xl p-8 w-[420px]">
-            {/* Preview area with illustration */}
-            <div className="w-full h-48 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl mb-6 overflow-hidden relative">
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                {/* Meeting illustration */}
-                <div className="flex items-end gap-3 mb-4">
-                  <div className="w-14 h-18 bg-slate-700 rounded-lg flex items-center justify-center">
-                    <div className="w-7 h-7 bg-slate-600 rounded-full" />
-                  </div>
-                  <div className="w-18 h-22 bg-blue-600/30 rounded-lg flex items-center justify-center border-2 border-blue-500 px-4 py-5">
-                    <div className="w-9 h-9 bg-blue-500/50 rounded-full" />
-                  </div>
-                  <div className="w-14 h-18 bg-slate-700 rounded-lg flex items-center justify-center">
-                    <div className="w-7 h-7 bg-slate-600 rounded-full" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-slate-400 text-sm">Ready to connect</span>
-                </div>
+            <div className="w-full h-48 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl mb-6 flex flex-col items-center justify-center">
+              <div className="flex items-end gap-3 mb-4">
+                <div className="w-14 h-16 bg-slate-700 rounded-lg flex items-center justify-center"><div className="w-7 h-7 bg-slate-600 rounded-full" /></div>
+                <div className="w-16 h-20 bg-blue-600/30 rounded-lg flex items-center justify-center border-2 border-blue-500"><div className="w-9 h-9 bg-blue-500/50 rounded-full" /></div>
+                <div className="w-14 h-16 bg-slate-700 rounded-lg flex items-center justify-center"><div className="w-7 h-7 bg-slate-600 rounded-full" /></div>
               </div>
+              <div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /><span className="text-slate-400 text-sm">Ready to connect</span></div>
             </div>
-            
-            {/* Name input */}
             <div className="mb-5">
               <label className="block text-sm font-medium text-gray-700 mb-2">Your name</label>
-              <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400"
-              />
+              <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Enter your name" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" onKeyDown={(e) => e.key === 'Enter' && joinMeeting()} />
             </div>
-
-            {/* Controls */}
             <div className="flex items-center justify-center gap-4 mb-5">
-              <button
-                onClick={() => setIsMuted(!isMuted)}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                  isMuted ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <MicIcon muted={isMuted} />
-              </button>
-              <button
-                onClick={() => setIsVideoOff(!isVideoOff)}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                  isVideoOff ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <VideoIcon off={isVideoOff} />
-              </button>
+              <button onClick={() => setIsMuted(!isMuted)} className={`w-12 h-12 rounded-full flex items-center justify-center ${isMuted ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}><MicIcon muted={isMuted} /></button>
+              <button onClick={() => setIsVideoOff(!isVideoOff)} className={`w-12 h-12 rounded-full flex items-center justify-center ${isVideoOff ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}><VideoIcon off={isVideoOff} /></button>
             </div>
-
             <div className="text-center">
               <h2 className="text-lg font-semibold text-gray-900 mb-1">Ready to join?</h2>
-              <p className="text-gray-500 text-sm mb-5">Camera and microphone are configured</p>
-              
-              <button
-                onClick={joinMeeting}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                Start Meeting
-              </button>
+              <p className="text-gray-500 text-sm mb-5">Camera and microphone configured</p>
+              <button onClick={joinMeeting} className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Start Meeting</button>
             </div>
           </div>
         </div>
@@ -420,136 +302,44 @@ export default function App() {
     )
   }
 
-  // Main meeting view
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
-      {/* Header */}
       <div className="h-12 bg-gray-800 flex items-center justify-between px-4">
-        <div className="flex items-center gap-4">
-          <span className="text-white text-sm font-medium">Emotion Copilot</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-gray-400 text-sm">{formatTime(meetingTime)}</span>
-        </div>
+        <div className="flex items-center gap-4"><span className="text-white text-sm font-medium">Emotion Copilot</span><span className="text-gray-400 text-sm">|</span><span className="text-gray-400 text-sm">{participants.length} participant{participants.length !== 1 ? 's' : ''}</span></div>
+        <span className="text-gray-400 text-sm">{formatTime(meetingTime)}</span>
       </div>
-
-      {/* Participant thumbnails */}
-      <div className="h-24 bg-gray-800/50 flex items-center justify-center gap-4 px-4">
-        <ParticipantThumbnail name="Jennifer Burton" isActive={false} isSpeaking={false} />
-        <ParticipantThumbnail name="Mike Wilner" isActive={false} isSpeaking={true} />
-        <ParticipantThumbnail name="Anna Ericson" isActive={true} isSpeaking={false} />
+      <div className="min-h-28 bg-gray-800/50 flex items-center justify-center gap-4 px-4 py-3 flex-wrap">
+        {participants.map((p) => (
+          <div key={p.odId} onClick={() => setSelectedParticipant(p.odId)} className="cursor-pointer">
+            <ParticipantVideo participant={p} stream={p.odId === odId ? localStreamRef.current : remoteStreams[p.odId]} isYou={p.odId === odId} isLarge={false} />
+          </div>
+        ))}
+        {!participants.length && <span className="text-gray-500 text-sm">Waiting for participants...</span>}
       </div>
-
-      {/* Main content area */}
       <div className="flex-1 flex">
-        {/* Video area */}
-        <div className="flex-1 relative bg-gray-900 flex items-center justify-center">
-          <video 
-            ref={videoRef}
-            autoPlay 
-            playsInline 
-            muted 
-            className="max-w-full max-h-full object-contain"
-            style={{ maxHeight: 'calc(100vh - 200px)' }}
-          />
-          {isVideoOff && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-32 h-32 rounded-full bg-gray-700 flex items-center justify-center">
-                <span className="text-3xl text-white font-medium">You</span>
-              </div>
-            </div>
-          )}
-          
-          {/* Recording indicator */}
-          <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-red-600 rounded text-white text-sm">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-            <span>Recording</span>
-          </div>
-        </div>
-
-        {/* Right panel */}
+        {displayParticipant && <ParticipantVideo participant={displayParticipant} stream={displayParticipant.odId === odId ? localStreamRef.current : remoteStreams[displayParticipant.odId]} isYou={displayParticipant.odId === odId} isLarge={true} />}
         <div className="w-80 bg-white flex flex-col">
-          {/* Panel header */}
           <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900">Meeting Insights</h3>
-            </div>
-            
-            {/* Tabs */}
+            <h3 className="font-semibold text-gray-900 mb-3">Meeting Insights</h3>
             <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-              {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === tab.id 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              {tabs.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-1 py-2 px-3 text-sm font-medium rounded-md ${activeTab === tab.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}>{tab.label}</button>)}
             </div>
           </div>
-
-          {/* Panel content */}
           <div className="flex-1 overflow-y-auto">
-            {activeTab === 'transcript' && <TranscriptPanel transcripts={mockTranscripts} />}
-            {activeTab === 'summary' && <SummaryPanel summary={mockSummary} />}
-            {activeTab === 'emotions' && <EmotionsPanel emotions={mockEmotions} />}
+            {activeTab === 'transcript' && <TranscriptPanel transcripts={transcripts} />}
+            {activeTab === 'summary' && <SummaryPanel />}
+            {activeTab === 'emotions' && <EmotionsPanel participants={participants} />}
           </div>
         </div>
       </div>
-
-      {/* Bottom control bar */}
       <div className="h-16 bg-gray-800 flex items-center justify-center gap-2 px-4">
-        <button
-          onClick={() => setIsMuted(!isMuted)}
-          className={`flex flex-col items-center justify-center w-16 h-12 rounded transition-colors ${
-            isMuted ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          <MicIcon muted={isMuted} />
-          <span className="text-xs mt-1">{isMuted ? 'Unmute' : 'Mute'}</span>
-        </button>
-
-        <button
-          onClick={() => setIsVideoOff(!isVideoOff)}
-          className={`flex flex-col items-center justify-center w-16 h-12 rounded transition-colors ${
-            isVideoOff ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          <VideoIcon off={isVideoOff} />
-          <span className="text-xs mt-1">{isVideoOff ? 'Start' : 'Stop'}</span>
-        </button>
-
-        <button className="flex flex-col items-center justify-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700 transition-colors">
-          <ScreenShareIcon />
-          <span className="text-xs mt-1">Share</span>
-        </button>
-
-        <button className="flex flex-col items-center justify-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700 transition-colors">
-          <UsersIcon />
-          <span className="text-xs mt-1">Participants</span>
-        </button>
-
-        <button className="flex flex-col items-center justify-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700 transition-colors">
-          <ChatIcon />
-          <span className="text-xs mt-1">Chat</span>
-        </button>
-
-        <button className="flex flex-col items-center justify-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700 transition-colors">
-          <RecordIcon />
-          <span className="text-xs mt-1">Record</span>
-        </button>
-
-        <button
-          onClick={leaveMeeting}
-          className="flex items-center justify-center px-6 h-10 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors ml-4"
-        >
-          End
-        </button>
+        <button onClick={() => setIsMuted(!isMuted)} className={`flex flex-col items-center w-16 h-12 rounded ${isMuted ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}><MicIcon muted={isMuted} /><span className="text-xs mt-1">{isMuted ? 'Unmute' : 'Mute'}</span></button>
+        <button onClick={() => setIsVideoOff(!isVideoOff)} className={`flex flex-col items-center w-16 h-12 rounded ${isVideoOff ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}><VideoIcon off={isVideoOff} /><span className="text-xs mt-1">{isVideoOff ? 'Start' : 'Stop'}</span></button>
+        <button className="flex flex-col items-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700"><ScreenShareIcon /><span className="text-xs mt-1">Share</span></button>
+        <button className="flex flex-col items-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700"><UsersIcon /><span className="text-xs mt-1">Participants</span></button>
+        <button className="flex flex-col items-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700"><ChatIcon /><span className="text-xs mt-1">Chat</span></button>
+        <button className="flex flex-col items-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700"><RecordIcon /><span className="text-xs mt-1">Record</span></button>
+        <button onClick={leaveMeeting} className="px-6 h-10 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 ml-4">End</button>
       </div>
     </div>
   )
