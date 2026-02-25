@@ -72,17 +72,17 @@ function ParticipantVideo({ participant, stream, isYou, isLarge }) {
 }
 
 function TranscriptPanel({ transcripts }) {
-  if (!transcripts.length) return <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No transcripts yet</div>
+  if (!transcripts.length) return <div className="flex items-center justify-center h-48 text-gray-500 text-sm">No transcripts yet</div>
   return (
     <div className="flex flex-col gap-3 p-4">
       {transcripts.map((item, i) => (
         <div key={i} className="flex gap-3">
-          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-medium text-gray-600">{item.speaker.split(' ').map(n => n[0]).join('')}</span>
+          <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+            <span className="text-xs font-medium text-gray-300">{item.speaker.split(' ').map(n => n[0]).join('')}</span>
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2"><span className="font-medium text-gray-900 text-sm">{item.speaker}</span><span className="text-xs text-gray-400">{item.time}</span></div>
-            <p className="text-sm text-gray-600 mt-1">{item.text}</p>
+            <div className="flex items-center gap-2"><span className="font-medium text-gray-200 text-sm">{item.speaker}</span><span className="text-xs text-gray-500">{item.time}</span></div>
+            <p className="text-sm text-gray-400 mt-1">{item.text}</p>
           </div>
         </div>
       ))}
@@ -92,23 +92,91 @@ function TranscriptPanel({ transcripts }) {
 
 function SummaryPanel() {
   return (
-    <div className="p-4"><div className="bg-blue-50 rounded-lg p-4"><h4 className="font-medium text-gray-900 mb-3">Meeting Summary</h4><ul className="space-y-2">{mockSummary.map((item, i) => <li key={i} className="flex gap-2 text-sm text-gray-700"><span className="text-blue-500">•</span>{item}</li>)}</ul></div></div>
+    <div className="p-4"><div className="bg-blue-900/30 rounded-lg p-4 border border-blue-800/50"><h4 className="font-medium text-gray-200 mb-3">Meeting Summary</h4><ul className="space-y-2">{mockSummary.map((item, i) => <li key={i} className="flex gap-2 text-sm text-gray-400"><span className="text-blue-400">•</span>{item}</li>)}</ul></div></div>
   )
 }
 
 function EmotionsPanel({ participants }) {
-  if (!participants.length) return <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No participants yet</div>
+  if (!participants.length) return <div className="flex items-center justify-center h-48 text-gray-500 text-sm">No participants yet</div>
   const emotions = ['Confident', 'Engaged', 'Neutral', 'Focused']
   const colors = ['#22c55e', '#3b82f6', '#6b7280', '#8b5cf6']
   return (
     <div className="p-4 space-y-4">
       {participants.map((p, i) => (
-        <div key={p.odId} className="bg-gray-50 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2"><span className="font-medium text-gray-900 text-sm">{p.name}</span><span className="text-sm" style={{ color: colors[i % 4] }}>{emotions[i % 4]}</span></div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${75 + i * 5}%`, backgroundColor: colors[i % 4] }} /></div>
+        <div key={p.odId} className="bg-gray-800 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2"><span className="font-medium text-gray-200 text-sm">{p.name}</span><span className="text-sm" style={{ color: colors[i % 4] }}>{emotions[i % 4]}</span></div>
+          <div className="h-2 bg-gray-700 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${75 + i * 5}%`, backgroundColor: colors[i % 4] }} /></div>
           <span className="text-xs text-gray-500 mt-1 block">{75 + i * 5}% confidence</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+function ParticipantsPanel({ participants, odId }) {
+  return (
+    <div className="p-4 space-y-2">
+      <div className="text-sm text-gray-400 mb-3">In this meeting ({participants.length})</div>
+      {participants.map((p) => (
+        <div key={p.odId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800">
+          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+            <span className="text-sm font-medium text-gray-300">{p.name.split(' ').map(n => n[0]).join('').toUpperCase()}</span>
+          </div>
+          <div className="flex-1">
+            <span className="text-gray-200 text-sm">{p.name}{p.odId === odId ? ' (You)' : ''}</span>
+          </div>
+          <div className="flex gap-2">
+            {p.isMuted && <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center"><MicIcon muted={true} /></div>}
+            {p.isVideoOff && <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center"><VideoIcon off={true} /></div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ChatPanel({ messages, onSend, userName }) {
+  const [message, setMessage] = useState('')
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 p-4 overflow-y-auto space-y-3">
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 text-sm mt-8">No messages yet</div>
+        ) : (
+          messages.map((msg, i) => (
+            <div key={i} className="flex gap-2">
+              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs text-gray-300">{msg.sender.split(' ').map(n => n[0]).join('')}</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2"><span className="text-sm font-medium text-gray-200">{msg.sender}</span><span className="text-xs text-gray-500">{msg.time}</span></div>
+                <p className="text-sm text-gray-400">{msg.text}</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="p-4 border-t border-gray-700">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 text-sm placeholder-gray-500 focus:outline-none focus:border-gray-600"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && message.trim()) {
+                onSend(message)
+                setMessage('')
+              }
+            }}
+          />
+          <button
+            onClick={() => { if (message.trim()) { onSend(message); setMessage('') } }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+          >Send</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -125,6 +193,10 @@ export default function App() {
   const [transcripts, setTranscripts] = useState([])
   const [remoteStreams, setRemoteStreams] = useState({})
   const [selectedParticipant, setSelectedParticipant] = useState(null)
+  const [rightPanel, setRightPanel] = useState('insights') // 'insights', 'participants', 'chat'
+  const [chatMessages, setChatMessages] = useState([])
+  const [panelWidth, setPanelWidth] = useState(288) // 288px = w-72
+  const isResizing = useRef(false)
   
   const localStreamRef = useRef(null)
   const wsRef = useRef(null)
@@ -182,6 +254,7 @@ export default function App() {
       if (data.type === 'offer') handleOffer(data.offer, data.from)
       if (data.type === 'answer') handleAnswer(data.answer, data.from)
       if (data.type === 'ice-candidate') handleIceCandidate(data.candidate, data.from)
+      if (data.type === 'chat') setChatMessages(prev => [...prev, data.message])
       if (data.type === 'user-left') {
         if (peerConnectionsRef.current[data.odId]) {
           peerConnectionsRef.current[data.odId].close()
@@ -202,7 +275,25 @@ export default function App() {
     if (wsRef.current?.readyState === WebSocket.OPEN && odId) {
       wsRef.current.send(JSON.stringify({ type: 'update', updates: { isMuted, isVideoOff } }))
     }
-  }, [isMuted, isVideoOff, odId])
+    // Actually mute/unmute audio track
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted
+      })
+    }
+  }, [isMuted, odId])
+
+  useEffect(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN && odId) {
+      wsRef.current.send(JSON.stringify({ type: 'update', updates: { isMuted, isVideoOff } }))
+    }
+    // Actually enable/disable video track
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach(track => {
+        track.enabled = !isVideoOff
+      })
+    }
+  }, [isVideoOff, odId])
 
   const startMedia = async () => {
     try {
@@ -251,6 +342,32 @@ export default function App() {
   const tabs = [{ id: 'transcript', label: 'Transcript' }, { id: 'summary', label: 'Summary' }, { id: 'emotions', label: 'Emotions' }]
   const otherParticipants = participants.filter(p => p.odId !== odId)
   const displayParticipant = selectedParticipant ? participants.find(p => p.odId === selectedParticipant) : (otherParticipants[0] || participants.find(p => p.odId === odId))
+
+  const sendChatMessage = (text) => {
+    const message = { sender: userName, text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+    setChatMessages(prev => [...prev, message])
+    wsRef.current?.send(JSON.stringify({ type: 'chat', message }))
+  }
+
+  const handleMouseDown = (e) => {
+    isResizing.current = true
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isResizing.current) return
+    const newWidth = window.innerWidth - e.clientX
+    if (newWidth >= 200 && newWidth <= 500) {
+      setPanelWidth(newWidth)
+    }
+  }
+
+  const handleMouseUp = () => {
+    isResizing.current = false
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
 
 
   if (!isInMeeting) {
@@ -310,7 +427,7 @@ export default function App() {
       </div>
       <div className="min-h-28 bg-gray-800/50 flex items-center justify-center gap-4 px-4 py-3 flex-wrap">
         {participants.map((p) => (
-          <div key={p.odId} onClick={() => setSelectedParticipant(p.odId)} className="cursor-pointer">
+          <div key={p.odId} onClick={() => setSelectedParticipant(p.odId === selectedParticipant ? null : p.odId)} className={`cursor-pointer transition-all ${selectedParticipant === p.odId ? 'ring-2 ring-blue-500 rounded-lg scale-105' : 'hover:scale-105'}`}>
             <ParticipantVideo participant={p} stream={p.odId === odId ? localStreamRef.current : remoteStreams[p.odId]} isYou={p.odId === odId} isLarge={false} />
           </div>
         ))}
@@ -318,28 +435,80 @@ export default function App() {
       </div>
       <div className="flex-1 flex">
         {displayParticipant && <ParticipantVideo participant={displayParticipant} stream={displayParticipant.odId === odId ? localStreamRef.current : remoteStreams[displayParticipant.odId]} isYou={displayParticipant.odId === odId} isLarge={true} />}
-        <div className="w-80 bg-white flex flex-col">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900 mb-3">Meeting Insights</h3>
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-              {tabs.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-1 py-2 px-3 text-sm font-medium rounded-md ${activeTab === tab.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}`}>{tab.label}</button>)}
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {activeTab === 'transcript' && <TranscriptPanel transcripts={transcripts} />}
-            {activeTab === 'summary' && <SummaryPanel />}
-            {activeTab === 'emotions' && <EmotionsPanel participants={participants} />}
+        <div className="relative flex" style={{ width: panelWidth }}>
+          {/* Resize handle */}
+          <div 
+            onMouseDown={handleMouseDown}
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors z-10"
+          />
+          <div className="flex-1 bg-gray-850 border-l border-gray-700 flex flex-col" style={{ backgroundColor: '#1e2530' }}>
+            {rightPanel === 'insights' && (
+              <>
+                <div className="p-3 border-b border-gray-700">
+                  <h3 className="font-semibold text-gray-200 text-sm mb-2">Meeting Insights</h3>
+                  <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
+                    {tabs.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${activeTab === tab.id ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>{tab.label}</button>)}
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {activeTab === 'transcript' && <TranscriptPanel transcripts={transcripts} />}
+                  {activeTab === 'summary' && <SummaryPanel />}
+                  {activeTab === 'emotions' && <EmotionsPanel participants={participants} />}
+                </div>
+              </>
+            )}
+            {rightPanel === 'participants' && (
+              <>
+                <div className="p-3 border-b border-gray-700">
+                  <h3 className="font-semibold text-gray-200 text-sm">Participants ({participants.length})</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  <ParticipantsPanel participants={participants} odId={odId} />
+                </div>
+              </>
+            )}
+            {rightPanel === 'chat' && (
+              <>
+                <div className="p-3 border-b border-gray-700">
+                  <h3 className="font-semibold text-gray-200 text-sm">Chat</h3>
+                </div>
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <ChatPanel messages={chatMessages} onSend={sendChatMessage} userName={userName} />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
-      <div className="h-16 bg-gray-800 flex items-center justify-center gap-2 px-4">
-        <button onClick={() => setIsMuted(!isMuted)} className={`flex flex-col items-center w-16 h-12 rounded ${isMuted ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}><MicIcon muted={isMuted} /><span className="text-xs mt-1">{isMuted ? 'Unmute' : 'Mute'}</span></button>
-        <button onClick={() => setIsVideoOff(!isVideoOff)} className={`flex flex-col items-center w-16 h-12 rounded ${isVideoOff ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-700'}`}><VideoIcon off={isVideoOff} /><span className="text-xs mt-1">{isVideoOff ? 'Start' : 'Stop'}</span></button>
-        <button className="flex flex-col items-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700"><ScreenShareIcon /><span className="text-xs mt-1">Share</span></button>
-        <button className="flex flex-col items-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700"><UsersIcon /><span className="text-xs mt-1">Participants</span></button>
-        <button className="flex flex-col items-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700"><ChatIcon /><span className="text-xs mt-1">Chat</span></button>
-        <button className="flex flex-col items-center w-16 h-12 rounded text-gray-300 hover:bg-gray-700"><RecordIcon /><span className="text-xs mt-1">Record</span></button>
-        <button onClick={leaveMeeting} className="px-6 h-10 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 ml-4">End</button>
+      <div className="h-16 bg-gray-800 flex items-center justify-center px-4">
+        <div className="flex items-center gap-1 bg-gray-700/50 rounded-xl p-1.5">
+          <button onClick={() => setIsMuted(!isMuted)} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${isMuted ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+            <MicIcon muted={isMuted} />
+            <span className="text-[10px] mt-1">{isMuted ? 'Unmute' : 'Mute'}</span>
+          </button>
+          <button onClick={() => setIsVideoOff(!isVideoOff)} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${isVideoOff ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+            <VideoIcon off={isVideoOff} />
+            <span className="text-[10px] mt-1">{isVideoOff ? 'Start' : 'Stop'}</span>
+          </button>
+          <div className="w-px h-8 bg-gray-600 mx-1"></div>
+          <button onClick={() => setRightPanel('insights')} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${rightPanel === 'insights' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+            <ScreenShareIcon />
+            <span className="text-[10px] mt-1">Insights</span>
+          </button>
+          <button onClick={() => setRightPanel('participants')} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${rightPanel === 'participants' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+            <UsersIcon />
+            <span className="text-[10px] mt-1">Participants</span>
+          </button>
+          <button onClick={() => setRightPanel('chat')} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${rightPanel === 'chat' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+            <ChatIcon />
+            <span className="text-[10px] mt-1">Chat</span>
+          </button>
+          <button className="flex flex-col items-center justify-center px-4 py-2 rounded-lg text-gray-300 hover:bg-gray-600 transition-all">
+            <RecordIcon />
+            <span className="text-[10px] mt-1">Record</span>
+          </button>
+        </div>
+        <button onClick={leaveMeeting} className="ml-8 px-6 py-2 bg-red-500 text-white text-sm rounded-lg font-medium hover:bg-red-600 transition-all">End</button>
       </div>
     </div>
   )

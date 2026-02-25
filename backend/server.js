@@ -78,6 +78,10 @@ wss.on('connection', (ws) => {
         case 'ice-candidate':
           sendTo(data.target, { type: 'ice-candidate', candidate: data.candidate, from: odId })
           break
+
+        case 'chat':
+          broadcast({ type: 'chat', message: data.message }, odId)
+          break
       }
     } catch (err) {
       console.error('Error processing message:', err)
