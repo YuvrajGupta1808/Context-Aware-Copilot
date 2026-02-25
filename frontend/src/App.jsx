@@ -480,30 +480,30 @@ export default function App() {
           </div>
         </div>
       </div>
-      <div className="h-16 bg-gray-800 flex items-center justify-center px-4">
+      <div className="h-16 bg-gray-800 flex items-center justify-center px-7">
         <div className="flex items-center gap-1 bg-gray-700/50 rounded-xl p-1.5">
-          <button onClick={() => setIsMuted(!isMuted)} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${isMuted ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+          <button onClick={() => setIsMuted(!isMuted)} className={`flex flex-col items-center justify-center w-16 py-2 rounded-lg transition-all ${isMuted ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
             <MicIcon muted={isMuted} />
             <span className="text-[10px] mt-1">{isMuted ? 'Unmute' : 'Mute'}</span>
           </button>
-          <button onClick={() => setIsVideoOff(!isVideoOff)} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${isVideoOff ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+          <button onClick={() => setIsVideoOff(!isVideoOff)} className={`flex flex-col items-center justify-center w-16 py-2 rounded-lg transition-all ${isVideoOff ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
             <VideoIcon off={isVideoOff} />
             <span className="text-[10px] mt-1">{isVideoOff ? 'Start' : 'Stop'}</span>
           </button>
           <div className="w-px h-8 bg-gray-600 mx-1"></div>
-          <button onClick={() => setRightPanel('insights')} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${rightPanel === 'insights' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+          <button onClick={() => setRightPanel('insights')} className={`flex flex-col items-center justify-center w-16 py-2 rounded-lg transition-all ${rightPanel === 'insights' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
             <ScreenShareIcon />
             <span className="text-[10px] mt-1">Insights</span>
           </button>
-          <button onClick={() => setRightPanel('participants')} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${rightPanel === 'participants' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+          <button onClick={() => setRightPanel('participants')} className={`flex flex-col items-center justify-center w-16 py-2 rounded-lg transition-all ${rightPanel === 'participants' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
             <UsersIcon />
             <span className="text-[10px] mt-1">Participants</span>
           </button>
-          <button onClick={() => setRightPanel('chat')} className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg transition-all ${rightPanel === 'chat' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+          <button onClick={() => setRightPanel('chat')} className={`flex flex-col items-center justify-center w-16 py-2 rounded-lg transition-all ${rightPanel === 'chat' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
             <ChatIcon />
             <span className="text-[10px] mt-1">Chat</span>
           </button>
-          <button className="flex flex-col items-center justify-center px-4 py-2 rounded-lg text-gray-300 hover:bg-gray-600 transition-all">
+          <button className="flex flex-col items-center justify-center w-16 py-2 rounded-lg text-gray-300 hover:bg-gray-600 transition-all">
             <RecordIcon />
             <span className="text-[10px] mt-1">Record</span>
           </button>
