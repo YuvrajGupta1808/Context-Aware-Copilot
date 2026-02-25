@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const WS_URL = 'ws://localhost:8080'
+const API_URL = 'http://localhost:8081'
 const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
 
 const MicIcon = ({ muted }) => (
@@ -27,8 +28,6 @@ const ScreenShareIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" f
 const UsersIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>)
 const ChatIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>)
 const RecordIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" fill="currentColor" /></svg>)
-
-const mockSummary = ['Discussion about project timeline', 'Target completion by Wednesday', 'Follow-up meeting scheduled']
 
 function ParticipantVideo({ participant, stream, isYou, isLarge }) {
   const videoRef = useRef(null)
@@ -90,23 +89,156 @@ function TranscriptPanel({ transcripts }) {
   )
 }
 
-function SummaryPanel() {
+function SummaryPanel({ summary, isLoading }) {
+  if (isLoading) {
+    return (
+      <div className="p-4 flex items-center justify-center">
+        <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+        <span className="ml-2 text-gray-400 text-sm">Generating summary...</span>
+      </div>
+    )
+  }
+
+  if (!summary) {
+    return <div className="flex items-center justify-center h-48 text-gray-500 text-sm">Summary will appear after transcription</div>
+  }
+
+  const sentimentColors = {
+    Positive: 'text-green-400',
+    Negative: 'text-red-400',
+    Mixed: 'text-yellow-400',
+    Neutral: 'text-gray-400'
+  }
+
+  // Helper to render item (handles both string and object formats)
+  const renderItem = (item) => {
+    if (typeof item === 'string') return item
+    if (typeof item === 'object' && item !== null) {
+      // Handle various object formats the AI might return
+      return item.text || item.item || item.description || item.action || item.task || JSON.stringify(item)
+    }
+    return String(item)
+  }
+
   return (
-    <div className="p-4"><div className="bg-blue-900/30 rounded-lg p-4 border border-blue-800/50"><h4 className="font-medium text-gray-200 mb-3">Meeting Summary</h4><ul className="space-y-2">{mockSummary.map((item, i) => <li key={i} className="flex gap-2 text-sm text-gray-400"><span className="text-blue-400">•</span>{item}</li>)}</ul></div></div>
+    <div className="p-4 space-y-4">
+      <div className="bg-blue-900/30 rounded-lg p-4 border border-blue-800/50">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-medium text-gray-200">Key Points</h4>
+          <span className={`text-sm ${sentimentColors[summary.overallSentiment] || 'text-gray-400'}`}>
+            {summary.overallSentiment}
+          </span>
+        </div>
+        <ul className="space-y-2">
+          {summary.keyPoints?.map((item, i) => (
+            <li key={i} className="flex gap-2 text-sm text-gray-400">
+              <span className="text-blue-400">•</span>{renderItem(item)}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {summary.actionItems?.length > 0 && (
+        <div className="bg-green-900/30 rounded-lg p-4 border border-green-800/50">
+          <h4 className="font-medium text-gray-200 mb-3">Action Items</h4>
+          <ul className="space-y-2">
+            {summary.actionItems.map((item, i) => (
+              <li key={i} className="flex gap-2 text-sm text-gray-400">
+                <span className="text-green-400">✓</span>{renderItem(item)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {summary.emotionalInsights && (
+        <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-800/50">
+          <h4 className="font-medium text-gray-200 mb-2">Emotional Insights</h4>
+          <p className="text-sm text-gray-400">{typeof summary.emotionalInsights === 'string' ? summary.emotionalInsights : JSON.stringify(summary.emotionalInsights)}</p>
+        </div>
+      )}
+    </div>
   )
 }
 
-function EmotionsPanel({ participants }) {
-  if (!participants.length) return <div className="flex items-center justify-center h-48 text-gray-500 text-sm">No participants yet</div>
-  const emotions = ['Confident', 'Engaged', 'Neutral', 'Focused']
-  const colors = ['#22c55e', '#3b82f6', '#6b7280', '#8b5cf6']
+function EmotionsPanel({ emotions, isLoading }) {
+  if (isLoading) {
+    return (
+      <div className="p-4 flex items-center justify-center">
+        <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full"></div>
+        <span className="ml-2 text-gray-400 text-sm">Analyzing emotions...</span>
+      </div>
+    )
+  }
+
+  if (!emotions.length) {
+    return <div className="flex items-center justify-center h-48 text-gray-500 text-sm">Click this tab to analyze emotions</div>
+  }
+
+  const emotionColors = {
+    Confident: '#22c55e',
+    Engaged: '#3b82f6',
+    Neutral: '#6b7280',
+    Focused: '#8b5cf6',
+    Confused: '#f59e0b',
+    Frustrated: '#ef4444',
+    Happy: '#10b981',
+    Concerned: '#f97316'
+  }
+
+  // Calculate overall meeting mood
+  const moodCounts = emotions.reduce((acc, e) => {
+    acc[e.emotion] = (acc[e.emotion] || 0) + 1
+    return acc
+  }, {})
+  const dominantMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Neutral'
+  const avgConfidence = Math.round(emotions.reduce((sum, e) => sum + (e.confidence || 0), 0) / emotions.length)
+
   return (
     <div className="p-4 space-y-4">
-      {participants.map((p, i) => (
-        <div key={p.odId} className="bg-gray-800 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2"><span className="font-medium text-gray-200 text-sm">{p.name}</span><span className="text-sm" style={{ color: colors[i % 4] }}>{emotions[i % 4]}</span></div>
-          <div className="h-2 bg-gray-700 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${75 + i * 5}%`, backgroundColor: colors[i % 4] }} /></div>
-          <span className="text-xs text-gray-500 mt-1 block">{75 + i * 5}% confidence</span>
+      {/* Reason/Summary Section */}
+      <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+        <h4 className="font-medium text-gray-200 text-sm mb-2">Meeting Mood</h4>
+        <div className="flex items-center gap-3">
+          <div 
+            className="w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: `${emotionColors[dominantMood]}20` }}
+          >
+            <span className="text-lg">
+              {dominantMood === 'Happy' || dominantMood === 'Engaged' ? '😊' : 
+               dominantMood === 'Confident' ? '💪' :
+               dominantMood === 'Focused' ? '🎯' :
+               dominantMood === 'Confused' ? '🤔' :
+               dominantMood === 'Frustrated' ? '😤' :
+               dominantMood === 'Concerned' ? '😟' : '😐'}
+            </span>
+          </div>
+          <div>
+            <p className="text-sm font-medium" style={{ color: emotionColors[dominantMood] }}>{dominantMood}</p>
+            <p className="text-xs text-gray-500">{avgConfidence}% avg confidence • {emotions.length} participant{emotions.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Individual Participants */}
+      {emotions.map((e, i) => (
+        <div key={i} className="bg-gray-800 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-medium text-gray-200 text-sm">{e.participantName}</span>
+            <span className="text-sm" style={{ color: emotionColors[e.emotion] || '#6b7280' }}>
+              {e.emotion}
+            </span>
+          </div>
+          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full transition-all duration-500" 
+              style={{ width: `${e.confidence}%`, backgroundColor: emotionColors[e.emotion] || '#6b7280' }} 
+            />
+          </div>
+          <span className="text-xs text-gray-500 mt-1 block">{e.confidence}% confidence</span>
+          <div className="mt-2 p-2 bg-gray-700/50 rounded text-xs text-gray-400">
+            <span className="text-gray-500">Reason: </span>{e.reason || e.description || 'Analyzing facial expression and body language'}
+          </div>
         </div>
       ))}
     </div>
@@ -196,11 +328,22 @@ export default function App() {
   const [rightPanel, setRightPanel] = useState('insights') // 'insights', 'participants', 'chat'
   const [chatMessages, setChatMessages] = useState([])
   const [panelWidth, setPanelWidth] = useState(288) // 288px = w-72
+  const [emotions, setEmotions] = useState([])
+  const [summary, setSummary] = useState(null)
+  const [isAnalyzingEmotions, setIsAnalyzingEmotions] = useState(false)
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
   const isResizing = useRef(false)
   
   const localStreamRef = useRef(null)
   const wsRef = useRef(null)
   const peerConnectionsRef = useRef({})
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+  const emotionIntervalRef = useRef(null)
+  const videoCanvasRef = useRef(null)
+  const recordingIntervalRef = useRef(null)
+  const isRecordingRef = useRef(false)
 
   const createPeerConnection = useCallback((targetId) => {
     const pc = new RTCPeerConnection(ICE_SERVERS)
@@ -329,6 +472,12 @@ export default function App() {
   }
 
   const leaveMeeting = () => {
+    stopRecording()
+    stopEmotionAnalysis()
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current)
+      recordingIntervalRef.current = null
+    }
     wsRef.current?.send(JSON.stringify({ type: 'leave' }))
     wsRef.current?.close()
     stopMedia()
@@ -337,6 +486,9 @@ export default function App() {
     setParticipants([])
     setOdId(null)
     setSelectedParticipant(null)
+    setTranscripts([])
+    setEmotions([])
+    setSummary(null)
   }
 
   const tabs = [{ id: 'transcript', label: 'Transcript' }, { id: 'summary', label: 'Summary' }, { id: 'emotions', label: 'Emotions' }]
@@ -367,6 +519,252 @@ export default function App() {
     isResizing.current = false
     document.removeEventListener('mousemove', handleMouseMove)
     document.removeEventListener('mouseup', handleMouseUp)
+  }
+
+  // Transcribe audio using Venice API
+  const transcribeAudio = async (audioBlob) => {
+    try {
+      console.log('Transcribing audio blob:', audioBlob.size, 'bytes')
+      
+      // Convert webm to wav using AudioContext
+      const wavBlob = await convertToWav(audioBlob)
+      console.log('Converted to WAV:', wavBlob.size, 'bytes')
+      
+      const formData = new FormData()
+      formData.append('file', wavBlob, 'audio.wav')
+      formData.append('model', 'openai/whisper-large-v3')
+      formData.append('response_format', 'json')
+
+      const res = await fetch(`${API_URL}/api/transcribe`, {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await res.json()
+      console.log('Transcription response:', result)
+      if (result.text && result.text.trim()) {
+        const newTranscript = {
+          speaker: userName,
+          text: result.text.trim(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        setTranscripts(prev => [...prev, newTranscript])
+      }
+    } catch (err) {
+      console.error('Transcription error:', err)
+    }
+  }
+
+  // Convert audio blob to WAV format
+  const convertToWav = async (blob) => {
+    const audioContext = new AudioContext()
+    const arrayBuffer = await blob.arrayBuffer()
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    
+    // Create WAV file
+    const numChannels = audioBuffer.numberOfChannels
+    const sampleRate = audioBuffer.sampleRate
+    const format = 1 // PCM
+    const bitDepth = 16
+    
+    const bytesPerSample = bitDepth / 8
+    const blockAlign = numChannels * bytesPerSample
+    
+    const samples = audioBuffer.length
+    const dataSize = samples * blockAlign
+    const buffer = new ArrayBuffer(44 + dataSize)
+    const view = new DataView(buffer)
+    
+    // WAV header
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
+      }
+    }
+    
+    writeString(0, 'RIFF')
+    view.setUint32(4, 36 + dataSize, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true) // fmt chunk size
+    view.setUint16(20, format, true)
+    view.setUint16(22, numChannels, true)
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, sampleRate * blockAlign, true)
+    view.setUint16(32, blockAlign, true)
+    view.setUint16(34, bitDepth, true)
+    writeString(36, 'data')
+    view.setUint32(40, dataSize, true)
+    
+    // Write audio data
+    const channelData = []
+    for (let i = 0; i < numChannels; i++) {
+      channelData.push(audioBuffer.getChannelData(i))
+    }
+    
+    let offset = 44
+    for (let i = 0; i < samples; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const sample = Math.max(-1, Math.min(1, channelData[ch][i]))
+        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
+        view.setInt16(offset, intSample, true)
+        offset += 2
+      }
+    }
+    
+    return new Blob([buffer], { type: 'audio/wav' })
+  }
+
+  // Analyze emotion from video frame using Venice Vision API
+  const analyzeEmotion = async (participantName, videoElement) => {
+    if (!videoElement || !videoCanvasRef.current) return null
+
+    try {
+      const canvas = videoCanvasRef.current
+      const ctx = canvas.getContext('2d')
+      canvas.width = 320
+      canvas.height = 240
+      ctx.drawImage(videoElement, 0, 0, 320, 240)
+      
+      const imageBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]
+
+      const res = await fetch(`${API_URL}/api/analyze-emotion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, participantName })
+      })
+
+      return await res.json()
+    } catch (err) {
+      console.error('Emotion analysis error:', err)
+      return null
+    }
+  }
+
+  // Generate meeting summary using Venice Thinking API
+  const generateSummary = async () => {
+    if (transcripts.length === 0) return
+
+    setIsGeneratingSummary(true)
+    try {
+      const res = await fetch(`${API_URL}/api/generate-summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcripts, emotions })
+      })
+
+      const result = await res.json()
+      setSummary(result)
+    } catch (err) {
+      console.error('Summary generation error:', err)
+    } finally {
+      setIsGeneratingSummary(false)
+    }
+  }
+
+  // Start audio recording for transcription
+  const startRecording = () => {
+    if (!localStreamRef.current) {
+      console.log('No local stream available')
+      return
+    }
+
+    const audioTracks = localStreamRef.current.getAudioTracks()
+    if (audioTracks.length === 0) {
+      console.log('No audio tracks available')
+      return
+    }
+
+    console.log('Starting recording...')
+    const audioStream = new MediaStream(audioTracks)
+    
+    // Check supported mime types
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+      ? 'audio/webm;codecs=opus' 
+      : MediaRecorder.isTypeSupported('audio/webm') 
+        ? 'audio/webm' 
+        : 'audio/mp4'
+    
+    console.log('Using mime type:', mimeType)
+    const mediaRecorder = new MediaRecorder(audioStream, { mimeType })
+    
+    mediaRecorder.ondataavailable = (e) => {
+      console.log('Audio data available:', e.data.size, 'bytes')
+      if (e.data.size > 0) {
+        audioChunksRef.current.push(e.data)
+      }
+    }
+
+    mediaRecorder.onstop = async () => {
+      console.log('Recorder stopped, chunks:', audioChunksRef.current.length)
+      if (audioChunksRef.current.length > 0) {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
+        audioChunksRef.current = []
+        await transcribeAudio(audioBlob)
+      }
+    }
+
+    mediaRecorderRef.current = mediaRecorder
+    mediaRecorder.start(1000) // Collect data every second
+    setIsRecording(true)
+    isRecordingRef.current = true
+
+    // Stop and transcribe every 10 seconds
+    recordingIntervalRef.current = setInterval(() => {
+      if (mediaRecorderRef.current?.state === 'recording' && isRecordingRef.current) {
+        console.log('Stopping recorder for transcription...')
+        mediaRecorderRef.current.stop()
+        setTimeout(() => {
+          if (isRecordingRef.current && localStreamRef.current) {
+            console.log('Restarting recorder...')
+            mediaRecorderRef.current?.start(1000)
+          }
+        }, 500)
+      }
+    }, 10000)
+  }
+
+  const stopRecording = () => {
+    console.log('Stopping recording...')
+    isRecordingRef.current = false
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current)
+      recordingIntervalRef.current = null
+    }
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop()
+    }
+    setIsRecording(false)
+  }
+
+  // Periodic emotion analysis
+  const startEmotionAnalysis = () => {
+    emotionIntervalRef.current = setInterval(async () => {
+      setIsAnalyzingEmotions(true)
+      const videoElements = document.querySelectorAll('video')
+      const newEmotions = []
+
+      for (const participant of participants) {
+        // Find video element for this participant
+        const videoEl = Array.from(videoElements).find(v => v.srcObject)
+        if (videoEl && !participant.isVideoOff) {
+          const emotion = await analyzeEmotion(participant.name, videoEl)
+          if (emotion) newEmotions.push(emotion)
+        }
+      }
+
+      if (newEmotions.length > 0) {
+        setEmotions(newEmotions)
+      }
+      setIsAnalyzingEmotions(false)
+    }, 30000) // Analyze every 30 seconds
+  }
+
+  const stopEmotionAnalysis = () => {
+    if (emotionIntervalRef.current) {
+      clearInterval(emotionIntervalRef.current)
+      emotionIntervalRef.current = null
+    }
   }
 
 
@@ -421,6 +819,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
+      {/* Hidden canvas for video frame capture */}
+      <canvas ref={videoCanvasRef} style={{ display: 'none' }} />
       <div className="h-12 bg-gray-800 flex items-center justify-between px-4">
         <div className="flex items-center gap-4"><span className="text-white text-sm font-medium">Emotion Copilot</span><span className="text-gray-400 text-sm">|</span><span className="text-gray-400 text-sm">{participants.length} participant{participants.length !== 1 ? 's' : ''}</span></div>
         <span className="text-gray-400 text-sm">{formatTime(meetingTime)}</span>
@@ -447,13 +847,43 @@ export default function App() {
                 <div className="p-3 border-b border-gray-700">
                   <h3 className="font-semibold text-gray-200 text-sm mb-2">Meeting Insights</h3>
                   <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
-                    {tabs.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${activeTab === tab.id ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>{tab.label}</button>)}
+                    {tabs.map(tab => (
+                      <button 
+                        key={tab.id} 
+                        onClick={() => {
+                          setActiveTab(tab.id)
+                          // Auto-trigger analysis on tab click
+                          if (tab.id === 'emotions' && !isAnalyzingEmotions && participants.length > 0) {
+                            (async () => {
+                              setIsAnalyzingEmotions(true)
+                              const videoElements = document.querySelectorAll('video')
+                              const newEmotions = []
+                              for (const participant of participants) {
+                                const videoEl = Array.from(videoElements).find(v => v.srcObject && !participant.isVideoOff)
+                                if (videoEl) {
+                                  const emotion = await analyzeEmotion(participant.name, videoEl)
+                                  if (emotion) newEmotions.push(emotion)
+                                }
+                              }
+                              if (newEmotions.length > 0) setEmotions(newEmotions)
+                              setIsAnalyzingEmotions(false)
+                            })()
+                          }
+                          if (tab.id === 'summary' && !isGeneratingSummary && transcripts.length > 0) {
+                            generateSummary()
+                          }
+                        }} 
+                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${activeTab === tab.id ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {activeTab === 'transcript' && <TranscriptPanel transcripts={transcripts} />}
-                  {activeTab === 'summary' && <SummaryPanel />}
-                  {activeTab === 'emotions' && <EmotionsPanel participants={participants} />}
+                  {activeTab === 'summary' && <SummaryPanel summary={summary} isLoading={isGeneratingSummary} />}
+                  {activeTab === 'emotions' && <EmotionsPanel emotions={emotions} isLoading={isAnalyzingEmotions} />}
                 </div>
               </>
             )}
@@ -503,9 +933,9 @@ export default function App() {
             <ChatIcon />
             <span className="text-[10px] mt-1">Chat</span>
           </button>
-          <button className="flex flex-col items-center justify-center w-16 py-2 rounded-lg text-gray-300 hover:bg-gray-600 transition-all">
+          <button onClick={() => isRecording ? stopRecording() : startRecording()} className={`flex flex-col items-center justify-center w-16 py-2 rounded-lg transition-all ${isRecording ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
             <RecordIcon />
-            <span className="text-[10px] mt-1">Record</span>
+            <span className="text-[10px] mt-1">{isRecording ? 'Stop' : 'Record'}</span>
           </button>
         </div>
         <button onClick={leaveMeeting} className="ml-8 px-6 py-2 bg-red-500 text-white text-sm rounded-lg font-medium hover:bg-red-600 transition-all">End</button>
