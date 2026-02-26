@@ -74,15 +74,15 @@ function ParticipantVideo({ participant, stream, isYou, isLarge }) {
 
   return (
     <div className={`relative flex flex-col items-center ${isYou ? 'ring-2 ring-green-500 rounded-lg p-1' : ''}`}>
-      <div className="w-32 h-24 bg-gray-700 rounded-lg flex items-center justify-center relative overflow-hidden">
+      <div className="w-28 h-20 bg-gray-700 rounded-lg flex items-center justify-center relative overflow-hidden shadow-lg">
         {stream && !participant.isVideoOff ? (
           <video ref={videoRef} autoPlay playsInline muted={isYou} className="w-full h-full object-cover" />
         ) : (
-          <span className="text-white text-lg font-medium">{initials}</span>
+          <span className="text-white text-base font-medium">{initials}</span>
         )}
         {participant.isMuted && <div className="absolute bottom-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><line x1="1" y1="1" x2="23" y2="23" /></svg></div>}
       </div>
-      <span className="text-white text-xs mt-1 truncate max-w-32">{isYou ? `${participant.name} (You)` : participant.name}</span>
+      <span className="text-white text-xs mt-1.5 truncate max-w-28">{isYou ? `${participant.name} (You)` : participant.name}</span>
     </div>
   )
 }
@@ -1076,33 +1076,33 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
+    <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
       {/* Hidden canvas for video frame capture */}
       <canvas ref={videoCanvasRef} style={{ display: 'none' }} />
-      <div className="h-12 bg-gray-800 flex items-center justify-between px-4">
+      <div className="h-12 flex-shrink-0 bg-gray-800 flex items-center justify-between px-4">
         <div className="flex items-center gap-4"><span className="text-white text-sm font-medium">Emotion Copilot</span><span className="text-gray-400 text-sm">|</span><span className="text-gray-400 text-sm">{participants.length} participant{participants.length !== 1 ? 's' : ''}</span></div>
         <span className="text-gray-400 text-sm">{formatTime(meetingTime)}</span>
       </div>
-      <div className="min-h-28 bg-gray-800/50 flex items-center justify-center gap-4 px-4 py-3 flex-wrap">
+      <div className="h-32 flex-shrink-0 bg-gray-800/50 flex items-center justify-center gap-4 px-4 py-3">
         {participants.map((p) => (
-          <div key={p.odId} onClick={() => setSelectedParticipant(p.odId === selectedParticipant ? null : p.odId)} className={`cursor-pointer transition-all ${selectedParticipant === p.odId ? 'ring-2 ring-blue-500 rounded-lg scale-105' : 'hover:scale-105'}`}>
+          <div key={p.odId} onClick={() => setSelectedParticipant(p.odId === selectedParticipant ? null : p.odId)} className={`cursor-pointer transition-all flex-shrink-0 ${selectedParticipant === p.odId ? 'ring-2 ring-blue-500 rounded-lg scale-105' : 'hover:scale-105'}`}>
             <ParticipantVideo participant={p} stream={p.odId === odId ? localStreamRef.current : remoteStreams[p.odId]} isYou={p.odId === odId} isLarge={false} />
           </div>
         ))}
         {!participants.length && <span className="text-gray-500 text-sm">Waiting for participants...</span>}
       </div>
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         {displayParticipant && <ParticipantVideo participant={displayParticipant} stream={displayParticipant.odId === odId ? localStreamRef.current : remoteStreams[displayParticipant.odId]} isYou={displayParticipant.odId === odId} isLarge={true} />}
-        <div className="relative flex" style={{ width: panelWidth }}>
+        <div className="relative flex flex-shrink-0" style={{ width: panelWidth }}>
           {/* Resize handle */}
           <div 
             onMouseDown={handleMouseDown}
             className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors z-10"
           />
-          <div className="flex-1 bg-gray-850 border-l border-gray-700 flex flex-col" style={{ backgroundColor: '#1e2530' }}>
+          <div className="flex-1 bg-gray-850 border-l border-gray-700 flex flex-col min-h-0" style={{ backgroundColor: '#1e2530' }}>
             {rightPanel === 'insights' && (
               <>
-                <div className="p-3 border-b border-gray-700">
+                <div className="p-3 border-b border-gray-700 flex-shrink-0">
                   <h3 className="font-semibold text-gray-200 text-sm mb-2">Meeting Insights</h3>
                   <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
                     {tabs.map(tab => (
@@ -1138,7 +1138,7 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto min-h-0">
                   {activeTab === 'transcript' && <TranscriptPanel transcripts={transcripts} />}
                   {activeTab === 'summary' && <SummaryPanel summary={summary} isLoading={isGeneratingSummary} />}
                   {activeTab === 'emotions' && <EmotionsPanel emotions={emotions} isLoading={isAnalyzingEmotions} />}
@@ -1147,20 +1147,20 @@ export default function App() {
             )}
             {rightPanel === 'participants' && (
               <>
-                <div className="p-3 border-b border-gray-700">
+                <div className="p-3 border-b border-gray-700 flex-shrink-0">
                   <h3 className="font-semibold text-gray-200 text-sm">Participants ({participants.length})</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto min-h-0">
                   <ParticipantsPanel participants={participants} odId={odId} />
                 </div>
               </>
             )}
             {rightPanel === 'chat' && (
               <>
-                <div className="p-3 border-b border-gray-700">
+                <div className="p-3 border-b border-gray-700 flex-shrink-0">
                   <h3 className="font-semibold text-gray-200 text-sm">Chat</h3>
                 </div>
-                <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                   <ChatPanel messages={chatMessages} onSend={sendChatMessage} userName={userName} />
                 </div>
               </>
@@ -1168,7 +1168,7 @@ export default function App() {
           </div>
         </div>
       </div>
-      <div className="h-16 bg-gray-800 flex items-center justify-center px-7">
+      <div className="h-16 flex-shrink-0 bg-gray-800 flex items-center justify-center px-7">
         <div className="flex items-center gap-1 bg-gray-700/50 rounded-xl p-1.5">
           <button onClick={() => setIsMuted(!isMuted)} className={`flex flex-col items-center justify-center w-16 py-2 rounded-lg transition-all ${isMuted ? 'bg-red-500 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
             <MicIcon muted={isMuted} />
