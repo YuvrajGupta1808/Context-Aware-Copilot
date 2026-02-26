@@ -1,8 +1,10 @@
+import crypto from 'crypto'
 import { config } from 'dotenv'
 import http from 'http'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
+import { createMeetingAgent } from './bidi-agent.js'
 
 // Load .env from project root
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -12,9 +14,12 @@ const VENICE_API_KEY = process.env.VENICE_API_KEY || ''
 const VENICE_BASE_URL = 'https://api.venice.ai/api/v1'
 
 // Models
-const TRANSCRIPTION_MODEL = 'openai/whisper-large-v3'
 const VISION_MODEL = 'qwen3-vl-235b-a22b'
 const THINKING_MODEL = 'claude-opus-4-6'
+
+// Bidi Agent instance (shared across the meeting)
+let meetingAgent = null
+let agentParticipantId = null
 
 // HTTP server for REST endpoints
 const httpServer = http.createServer(async (req, res) => {
@@ -230,6 +235,197 @@ Only return valid JSON.`
     return
   }
 
+  // Add AI agent to meeting endpoint
+  if (req.method === 'POST' && req.url === '/api/add-agent') {
+    try {
+      const chunks = []
+      for await (const chunk of req) chunks.push(chunk)
+      const { name, voice, systemPrompt } = JSON.parse(Buffer.concat(chunks).toString())
+
+      if (meetingAgent) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Agent already in meeting' }))
+        return
+      }
+
+      meetingAgent = createMeetingAgent({
+        name: name || 'AI Assistant',
+        voice: voice || 'af_sky',
+        systemPrompt
+      })
+
+      // Generate a participant ID for the agent
+      agentParticipantId = `agent-${crypto.randomUUID()}`
+
+      // Set up agent event handlers
+      meetingAgent.on('error', (data) => {
+        console.error(`[Server] Agent error: ${data.error}`)
+      })
+
+      meetingAgent.on('response', (data) => {
+        // Broadcast agent's text response as a transcript
+        broadcast({
+          type: 'transcript',
+          transcript: {
+            speaker: meetingAgent.name,
+            text: data.text,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isAgent: true
+          }
+        })
+      })
+
+      meetingAgent.on('audio', (data) => {
+        // Broadcast agent's audio to all participants
+        const audioBase64 = Buffer.from(data.audio).toString('base64')
+        console.log(`[Server] Broadcasting agent audio, size: ${audioBase64.length} chars`)
+        broadcast({
+          type: 'agent-audio',
+          audio: audioBase64,
+          text: data.text,
+          agentName: meetingAgent.name
+        })
+      })
+
+      meetingAgent.on('processing', (data) => {
+        broadcast({
+          type: 'agent-status',
+          status: data.status,
+          agentName: meetingAgent.name
+        })
+      })
+
+      meetingAgent.start()
+
+      // Add agent as a participant
+      participants.set(agentParticipantId, {
+        odId: agentParticipantId,
+        name: meetingAgent.name,
+        isMuted: false,
+        isVideoOff: true,
+        isAgent: true,
+        joinedAt: Date.now()
+      })
+
+      broadcast({ type: 'participants', participants: getParticipantsList() })
+      broadcast({ 
+        type: 'agent-joined', 
+        agent: { 
+          id: agentParticipantId, 
+          name: meetingAgent.name 
+        } 
+      })
+
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ 
+        success: true, 
+        agentId: agentParticipantId,
+        name: meetingAgent.name 
+      }))
+    } catch (err) {
+      console.error('Add agent error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message }))
+    }
+    return
+  }
+
+  // Remove AI agent from meeting
+  if (req.method === 'POST' && req.url === '/api/remove-agent') {
+    try {
+      if (meetingAgent) {
+        meetingAgent.stop()
+        meetingAgent = null
+      }
+      if (agentParticipantId) {
+        participants.delete(agentParticipantId)
+        broadcast({ type: 'participants', participants: getParticipantsList() })
+        broadcast({ type: 'agent-left', agentId: agentParticipantId })
+        agentParticipantId = null
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ success: true }))
+    } catch (err) {
+      console.error('Remove agent error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message }))
+    }
+    return
+  }
+
+  // Send text to agent (for testing or manual interaction)
+  if (req.method === 'POST' && req.url === '/api/agent-message') {
+    try {
+      const chunks = []
+      for await (const chunk of req) chunks.push(chunk)
+      const { text, speaker } = JSON.parse(Buffer.concat(chunks).toString())
+
+      if (!meetingAgent) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'No agent in meeting' }))
+        return
+      }
+
+      const result = await meetingAgent.respondToText(text, speaker || 'User')
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ 
+        success: true, 
+        response: result.text,
+        hasAudio: !!result.audio
+      }))
+    } catch (err) {
+      console.error('Agent message error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message }))
+    }
+    return
+  }
+
+  // Text-to-speech endpoint (for agent voice)
+  if (req.method === 'POST' && req.url === '/api/tts') {
+    try {
+      const chunks = []
+      for await (const chunk of req) chunks.push(chunk)
+      const { text, voice } = JSON.parse(Buffer.concat(chunks).toString())
+
+      const veniceRes = await fetch(`${VENICE_BASE_URL}/audio/speech`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${VENICE_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'tts-kokoro',
+          input: text,
+          voice: voice || 'af_sky',
+          response_format: 'mp3',
+          speed: 1.0
+        })
+      })
+
+      if (!veniceRes.ok) {
+        const errorText = await veniceRes.text()
+        res.writeHead(veniceRes.status, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: errorText }))
+        return
+      }
+
+      const audioBuffer = await veniceRes.arrayBuffer()
+      res.writeHead(200, { 
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': audioBuffer.byteLength
+      })
+      res.end(Buffer.from(audioBuffer))
+    } catch (err) {
+      console.error('TTS error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message }))
+    }
+    return
+  }
+
   res.writeHead(404, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify({ error: 'Not found' }))
 })
@@ -326,6 +522,51 @@ wss.on('connection', (ws) => {
         case 'transcript':
           // Broadcast transcript to all other participants
           broadcast({ type: 'transcript', transcript: data.transcript }, odId)
+          // Also feed to the AI agent if present
+          if (meetingAgent?.isListening && data.transcript?.text && !data.transcript.isAgent) {
+            // Agent listens to transcripts and can respond
+            const participant = participants.get(odId)
+            const speakerName = participant?.name || 'Unknown'
+            const text = data.transcript.text.toLowerCase()
+            const agentName = meetingAgent.name.toLowerCase()
+            
+            // Respond if: mentions agent, asks a question, or says "hey/hi" type greetings
+            const shouldRespond = 
+              text.includes(agentName) || 
+              text.includes('assistant') || 
+              text.includes(' ai ') ||
+              text.includes('ai,') ||
+              text.startsWith('ai ') ||
+              text.endsWith('?') ||
+              text.includes('hey ') ||
+              text.includes('hello') ||
+              text.includes('help me') ||
+              text.includes('can you') ||
+              text.includes('could you') ||
+              text.includes('what do you think')
+            
+            if (shouldRespond) {
+              console.log(`[Server] Agent responding to: "${data.transcript.text}"`)
+              meetingAgent.respondToText(data.transcript.text, speakerName)
+            }
+          }
+          break
+
+        case 'agent-audio-chunk':
+          // Feed audio chunk to the agent for processing
+          if (meetingAgent && data.audio) {
+            const audioBuffer = Buffer.from(data.audio, 'base64')
+            const participant = participants.get(odId)
+            meetingAgent.feedAudio(audioBuffer, participant?.name || 'Unknown')
+          }
+          break
+
+        case 'ask-agent':
+          // Direct message to the agent
+          if (meetingAgent?.isListening && data.text) {
+            const participant = participants.get(odId)
+            meetingAgent.respondToText(data.text, participant?.name || 'User')
+          }
           break
       }
     } catch (err) {

@@ -44,6 +44,7 @@ const ScreenShareIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" f
 const UsersIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>)
 const ChatIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>)
 const RecordIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" fill="currentColor" /></svg>)
+const BotIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><circle cx="8" cy="16" r="1" fill="currentColor" /><circle cx="16" cy="16" r="1" fill="currentColor" /></svg>)
 
 function ParticipantVideo({ participant, stream, isYou, isLarge }) {
   const videoRef = useRef(null)
@@ -92,11 +93,19 @@ function TranscriptPanel({ transcripts }) {
     <div className="flex flex-col gap-3 p-4">
       {transcripts.map((item, i) => (
         <div key={i} className="flex gap-3">
-          <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-medium text-gray-300">{item.speaker.split(' ').map(n => n[0]).join('')}</span>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${item.isAgent ? 'bg-purple-700' : 'bg-gray-700'}`}>
+            {item.isAgent ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /></svg>
+            ) : (
+              <span className="text-xs font-medium text-gray-300">{item.speaker.split(' ').map(n => n[0]).join('')}</span>
+            )}
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2"><span className="font-medium text-gray-200 text-sm">{item.speaker}</span><span className="text-xs text-gray-500">{item.time}</span></div>
+            <div className="flex items-center gap-2">
+              <span className={`font-medium text-sm ${item.isAgent ? 'text-purple-300' : 'text-gray-200'}`}>{item.speaker}</span>
+              {item.isAgent && <span className="text-xs text-purple-400 bg-purple-900/50 px-1.5 py-0.5 rounded">AI</span>}
+              <span className="text-xs text-gray-500">{item.time}</span>
+            </div>
             <p className="text-sm text-gray-400 mt-1">{item.text}</p>
           </div>
         </div>
@@ -267,11 +276,16 @@ function ParticipantsPanel({ participants, odId }) {
       <div className="text-sm text-gray-400 mb-3">In this meeting ({participants.length})</div>
       {participants.map((p) => (
         <div key={p.odId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800">
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-            <span className="text-sm font-medium text-gray-300">{p.name.split(' ').map(n => n[0]).join('').toUpperCase()}</span>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${p.isAgent ? 'bg-purple-700' : 'bg-gray-700'}`}>
+            {p.isAgent ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><circle cx="8" cy="16" r="1" fill="white" /><circle cx="16" cy="16" r="1" fill="white" /></svg>
+            ) : (
+              <span className="text-sm font-medium text-gray-300">{p.name.split(' ').map(n => n[0]).join('').toUpperCase()}</span>
+            )}
           </div>
           <div className="flex-1">
             <span className="text-gray-200 text-sm">{p.name}{p.odId === odId ? ' (You)' : ''}</span>
+            {p.isAgent && <span className="ml-2 text-xs text-purple-400">AI</span>}
           </div>
           <div className="flex gap-2">
             {p.isMuted && <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center"><MicIcon muted={true} /></div>}
@@ -329,6 +343,80 @@ function ChatPanel({ messages, onSend, userName }) {
   )
 }
 
+function AgentModal({ onClose, onAdd }) {
+  const [name, setName] = useState('AI Assistant')
+  const [voice, setVoice] = useState('af_sky')
+  const [systemPrompt, setSystemPrompt] = useState('')
+
+  const voices = [
+    { id: 'af_sky', label: 'Sky (Female)' },
+    { id: 'af_bella', label: 'Bella (Female)' },
+    { id: 'af_nova', label: 'Nova (Female)' },
+    { id: 'am_adam', label: 'Adam (Male)' },
+    { id: 'am_echo', label: 'Echo (Male)' },
+    { id: 'am_michael', label: 'Michael (Male)' }
+  ]
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-xl p-6 w-[400px] max-w-[90vw]">
+        <h3 className="text-lg font-semibold text-white mb-4">Add AI Agent to Meeting</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Agent Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+              placeholder="AI Assistant"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Voice</label>
+            <select
+              value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+            >
+              {voices.map(v => (
+                <option key={v.id} value={v.id}>{v.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Custom Instructions (optional)</label>
+            <textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 h-24 resize-none"
+              placeholder="Give the agent specific instructions for this meeting..."
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onAdd({ name, voice, systemPrompt: systemPrompt || undefined })}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+          >
+            Add Agent
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
@@ -349,6 +437,9 @@ export default function App() {
   const [isAnalyzingEmotions, setIsAnalyzingEmotions] = useState(false)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [aiAgent, setAiAgent] = useState(null)
+  const [agentStatus, setAgentStatus] = useState(null)
+  const [showAgentModal, setShowAgentModal] = useState(false)
   const isResizing = useRef(false)
   
   const localStreamRef = useRef(null)
@@ -472,6 +563,21 @@ export default function App() {
       if (data.type === 'ice-candidate') handleIceCandidate(data.candidate, data.from)
       if (data.type === 'chat') setChatMessages(prev => [...prev, data.message])
       if (data.type === 'transcript') setTranscripts(prev => [...prev, data.transcript])
+      if (data.type === 'agent-joined') {
+        setAiAgent(data.agent)
+        setAgentStatus('joined')
+      }
+      if (data.type === 'agent-left') {
+        setAiAgent(null)
+        setAgentStatus(null)
+      }
+      if (data.type === 'agent-status') {
+        setAgentStatus(data.status)
+      }
+      if (data.type === 'agent-audio') {
+        // Play agent's audio response
+        playAgentAudio(data.audio)
+      }
       if (data.type === 'user-left') {
         if (peerConnectionsRef.current[data.odId]) {
           peerConnectionsRef.current[data.odId].close()
@@ -552,6 +658,10 @@ export default function App() {
       clearInterval(recordingIntervalRef.current)
       recordingIntervalRef.current = null
     }
+    // Remove AI agent if present
+    if (aiAgent) {
+      removeAiAgent()
+    }
     wsRef.current?.send(JSON.stringify({ type: 'leave' }))
     wsRef.current?.close()
     stopMedia()
@@ -563,6 +673,8 @@ export default function App() {
     setTranscripts([])
     setEmotions([])
     setSummary(null)
+    setAiAgent(null)
+    setAgentStatus(null)
   }
 
   const tabs = [{ id: 'transcript', label: 'Transcript' }, { id: 'summary', label: 'Summary' }, { id: 'emotions', label: 'Emotions' }]
@@ -845,6 +957,74 @@ export default function App() {
     }
   }
 
+  // Play agent audio response
+  const playAgentAudio = async (audioBase64) => {
+    try {
+      console.log('[Audio] Playing agent audio, length:', audioBase64.length)
+      const audioData = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0))
+      const audioBlob = new Blob([audioData], { type: 'audio/mpeg' })
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
+      
+      audio.onerror = (e) => {
+        console.error('[Audio] Playback error:', e)
+        URL.revokeObjectURL(audioUrl)
+      }
+      
+      audio.onended = () => {
+        console.log('[Audio] Playback finished')
+        URL.revokeObjectURL(audioUrl)
+      }
+      
+      await audio.play()
+      console.log('[Audio] Playback started')
+    } catch (err) {
+      console.error('[Audio] Error playing agent audio:', err)
+    }
+  }
+
+  // Add AI agent to meeting
+  const addAiAgent = async (agentConfig = {}) => {
+    try {
+      const res = await fetch(`${API_URL}/api/add-agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: agentConfig.name || 'AI Assistant',
+          voice: agentConfig.voice || 'af_sky',
+          systemPrompt: agentConfig.systemPrompt
+        })
+      })
+      const result = await res.json()
+      if (result.success) {
+        setAiAgent({ id: result.agentId, name: result.name })
+        setShowAgentModal(false)
+      } else {
+        alert(result.error || 'Failed to add agent')
+      }
+    } catch (err) {
+      console.error('Error adding agent:', err)
+      alert('Failed to add AI agent')
+    }
+  }
+
+  // Remove AI agent from meeting
+  const removeAiAgent = async () => {
+    try {
+      await fetch(`${API_URL}/api/remove-agent`, { method: 'POST' })
+      setAiAgent(null)
+      setAgentStatus(null)
+    } catch (err) {
+      console.error('Error removing agent:', err)
+    }
+  }
+
+  // Send message to AI agent
+  const askAgent = async (text) => {
+    if (!aiAgent || !text.trim()) return
+    wsRef.current?.send(JSON.stringify({ type: 'ask-agent', text }))
+  }
+
 
   if (!isInMeeting) {
     return (
@@ -1015,9 +1195,28 @@ export default function App() {
             <RecordIcon />
             <span className="text-[10px] mt-1">{isRecording ? 'Stop' : 'Record'}</span>
           </button>
+          <button 
+            onClick={() => aiAgent ? removeAiAgent() : setShowAgentModal(true)} 
+            className={`flex flex-col items-center justify-center w-16 py-2 rounded-lg transition-all ${aiAgent ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}
+          >
+            <BotIcon />
+            <span className="text-[10px] mt-1">{aiAgent ? 'Remove AI' : 'AI'}</span>
+          </button>
         </div>
         <button onClick={leaveMeeting} className="ml-8 px-6 py-2 bg-red-500 text-white text-sm rounded-lg font-medium hover:bg-red-600 transition-all">End</button>
       </div>
+      {showAgentModal && (
+        <AgentModal 
+          onClose={() => setShowAgentModal(false)} 
+          onAdd={addAiAgent} 
+        />
+      )}
+      {aiAgent && agentStatus && (
+        <div className="fixed bottom-20 left-4 bg-purple-900/90 text-purple-200 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+          <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+          <span>{aiAgent.name}: {agentStatus === 'thinking' ? 'Thinking...' : agentStatus === 'speaking' ? 'Speaking...' : agentStatus === 'transcribing' ? 'Listening...' : 'Ready'}</span>
+        </div>
+      )}
     </div>
   )
 }
