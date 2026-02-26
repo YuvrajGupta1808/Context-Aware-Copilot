@@ -5,6 +5,7 @@ import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import { createMeetingAgent } from './bidi-agent.js'
+import { getEncryptedMemoryStatus } from './encrypted-memory.js'
 
 // Load .env from project root
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -30,6 +31,46 @@ const httpServer = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(200)
     res.end()
+    return
+  }
+
+  // Privacy & Status endpoint - shows data handling transparency
+  if (req.method === 'GET' && req.url === '/api/privacy-status') {
+    const memoryStatus = getEncryptedMemoryStatus()
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({
+      platform: 'Akash Network (Decentralized)',
+      dataRetention: {
+        rawAudio: 'Never stored - processed in real-time, immediately discarded',
+        rawVideo: 'Never stored - frames analyzed in memory only',
+        transcripts: 'Session-only - cleared when meeting ends',
+        emotions: 'Session-only - cleared when meeting ends',
+        summaries: 'Session-only - user can export before meeting ends'
+      },
+      encryptedMemory: memoryStatus,
+      apiProvider: {
+        name: 'Venice AI',
+        policy: 'Zero data retention - no logs, no training on user data',
+        docs: 'https://venice.ai/privacy'
+      },
+      encryption: {
+        agentMemory: 'AES-256-GCM encrypted (session keys only)',
+        webrtc: 'DTLS-SRTP encrypted peer-to-peer',
+        websocket: 'TLS encrypted signaling'
+      },
+      currentSession: {
+        participants: participants.size,
+        agentActive: !!meetingAgent
+      }
+    }))
+    return
+  }
+
+  // Encrypted memory status endpoint
+  if (req.method === 'GET' && req.url === '/api/encrypted-memory') {
+    const status = getEncryptedMemoryStatus()
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(status))
     return
   }
 

@@ -1,0 +1,39 @@
+---
+version: "2.0"
+services:
+  encrypted-memory-store:
+    image: redis:7-alpine
+    expose:
+      - port: 6379
+        as: 6379
+        to:
+          - global: true
+    command:
+      - "redis-server"
+      - "--requirepass"
+      - "akash-encrypted-mem-2024"
+profiles:
+  compute:
+    encrypted-memory-store:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 256Mi
+        storage:
+          - size: 512Mi
+  placement:
+    dcloud:
+      pricing:
+        encrypted-memory-store:
+          denom: ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1
+          amount: 50000
+      signedBy:
+        anyOf:
+          - akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63
+        allOf: []
+deployment:
+  encrypted-memory-store:
+    dcloud:
+      profile: encrypted-memory-store
+      count: 1
