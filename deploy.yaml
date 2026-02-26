@@ -1,0 +1,44 @@
+---
+version: "2.0"
+
+services:
+  emotion-copilot:
+    image: <YOUR_DOCKER_IMAGE>
+    env:
+      - VENICE_API_KEY=<YOUR_VENICE_API_KEY>
+    expose:
+      - port: 3000
+        as: 80
+        to:
+          - global: true
+      - port: 8080
+        as: 8080
+        to:
+          - global: true
+      - port: 8081
+        as: 8081
+        to:
+          - global: true
+
+profiles:
+  compute:
+    emotion-copilot:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    akash:
+      pricing:
+        emotion-copilot:
+          denom: uakt
+          amount: 10000
+
+deployment:
+  emotion-copilot:
+    akash:
+      profile: emotion-copilot
+      count: 1

@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const WS_URL = 'ws://localhost:8080'
-const API_URL = 'http://localhost:8081'
+const WS_URL = typeof window !== 'undefined' 
+  ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8080`
+  : 'ws://localhost:8080'
+const API_URL = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:8081`
+  : 'http://localhost:8081'
 const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
 
 const MicIcon = ({ muted }) => (
