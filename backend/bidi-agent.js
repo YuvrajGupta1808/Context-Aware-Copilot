@@ -48,6 +48,13 @@ export class BidiAgent extends EventEmitter {
     this.silenceThreshold = options.silenceThreshold || 1500 // ms of silence before processing
     this.lastAudioTime = 0
     this.processingTimeout = null
+    
+    // Queue management for multiple participants
+    this.responseQueue = []
+    this.isProcessingQueue = false
+    this.currentProcessingId = null
+    this.cooldownMs = options.cooldownMs || 2000 // Wait between responses
+    this.lastResponseTime = 0
   }
 
   _defaultSystemPrompt() {
@@ -94,6 +101,10 @@ Remember: You're in a real-time meeting, so keep responses brief and natural.`
     if (this.processingTimeout) {
       clearTimeout(this.processingTimeout)
     }
+    // Clear the queue when stopping
+    this.responseQueue = []
+    this.isProcessingQueue = false
+    this.currentProcessingId = null
     this.emit('stopped', { name: this.name })
     console.log(`[BidiAgent] ${this.name} stopped`)
   }
@@ -291,6 +302,7 @@ Remember: You're in a real-time meeting, so keep responses brief and natural.`
 
   /**
    * Directly send a text message (for testing or manual input)
+   * Queues the request to handle multiple participants properly
    * @param {string} text - Text to respond to
    * @param {string} speaker - Speaker name
    */
@@ -299,6 +311,87 @@ Remember: You're in a real-time meeting, so keep responses brief and natural.`
       console.log('[BidiAgent] Agent not listening, ignoring message')
       return null
     }
+
+    // Add to queue instead of processing immediately
+    const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Check if similar message is already in queue (debounce duplicate messages)
+    const isDuplicate = this.responseQueue.some(
+      item => item.text.toLowerCase() === text.toLowerCase() && 
+              Date.now() - item.timestamp < 3000
+    )
+    
+    if (isDuplicate) {
+      console.log(`[BidiAgent] Ignoring duplicate message: "${text}"`)
+      return null
+    }
+
+    console.log(`[BidiAgent] Queuing message from ${speaker}: "${text}" (queue size: ${this.responseQueue.length + 1})`)
+    
+    this.responseQueue.push({
+      id: requestId,
+      text,
+      speaker,
+      timestamp: Date.now()
+    })
+
+    // Start processing queue if not already running
+    this._processQueue()
+    
+    return { queued: true, requestId }
+  }
+
+  /**
+   * Process the response queue one at a time
+   */
+  async _processQueue() {
+    if (this.isProcessingQueue || this.responseQueue.length === 0) {
+      return
+    }
+
+    this.isProcessingQueue = true
+
+    while (this.responseQueue.length > 0 && this.isListening) {
+      // Enforce cooldown between responses
+      const timeSinceLastResponse = Date.now() - this.lastResponseTime
+      if (timeSinceLastResponse < this.cooldownMs) {
+        await new Promise(resolve => setTimeout(resolve, this.cooldownMs - timeSinceLastResponse))
+      }
+
+      if (!this.isListening) break
+
+      const request = this.responseQueue.shift()
+      
+      // Skip old messages (older than 10 seconds)
+      if (Date.now() - request.timestamp > 10000) {
+        console.log(`[BidiAgent] Skipping stale message from ${request.speaker}`)
+        continue
+      }
+
+      this.currentProcessingId = request.id
+      
+      try {
+        console.log(`[BidiAgent] Processing message from ${request.speaker}: "${request.text}"`)
+        await this._processResponse(request.text, request.speaker)
+        this.lastResponseTime = Date.now()
+      } catch (error) {
+        console.error(`[BidiAgent] Error processing message:`, error.message)
+        if (this.isListening) {
+          this.emit('error', { error: error.message })
+        }
+      }
+      
+      this.currentProcessingId = null
+    }
+
+    this.isProcessingQueue = false
+  }
+
+  /**
+   * Actually process and respond to a message
+   */
+  async _processResponse(text, speaker) {
+    if (!this.isListening) return null
 
     try {
       this.emit('processing', { status: 'thinking' })
@@ -323,11 +416,8 @@ Remember: You're in a real-time meeting, so keep responses brief and natural.`
 
       return { text: response, audio }
     } catch (error) {
-      console.error('[BidiAgent] Error in respondToText:', error.message)
-      if (this.isListening) {
-        this.emit('error', { error: error.message })
-      }
-      return null
+      console.error('[BidiAgent] Error in _processResponse:', error.message)
+      throw error
     }
   }
 }
