@@ -282,6 +282,8 @@ wss.on('connection', (ws) => {
           })
           clients.set(odId, ws)
           ws.send(JSON.stringify({ type: 'joined', odId }))
+          // Notify existing participants about the new user so they can initiate WebRTC
+          broadcast({ type: 'new-participant', participant: participants.get(odId) }, odId)
           broadcast({ type: 'participants', participants: getParticipantsList() })
           // Notify new user about existing participants for WebRTC connections
           ws.send(JSON.stringify({ type: 'existing-participants', participants: getParticipantsList().filter(p => p.odId !== odId) }))
@@ -319,6 +321,11 @@ wss.on('connection', (ws) => {
 
         case 'chat':
           broadcast({ type: 'chat', message: data.message }, odId)
+          break
+
+        case 'transcript':
+          // Broadcast transcript to all other participants
+          broadcast({ type: 'transcript', transcript: data.transcript }, odId)
           break
       }
     } catch (err) {

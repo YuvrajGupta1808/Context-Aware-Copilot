@@ -3,9 +3,9 @@ version: "2.0"
 
 services:
   emotion-copilot:
-    image: <YOUR_DOCKER_IMAGE>
+    image: yuvrajgupta1808/emotion-copilot:latest
     env:
-      - VENICE_API_KEY=<YOUR_VENICE_API_KEY>
+      - VENICE_API_KEY=VENICE-ADMIN-KEY-xRRSEMPQQe8-DkpTGZTEQOilbmgykuUUc6v5_-pJkT
     expose:
       - port: 3000
         as: 80

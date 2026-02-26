@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const WS_URL = typeof window !== 'undefined' 
-  ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8080`
-  : 'ws://localhost:8080'
-const API_URL = typeof window !== 'undefined'
-  ? `${window.location.protocol}//${window.location.hostname}:8081`
-  : 'http://localhost:8081'
-const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+// Akash deployment URLs - update these after deployment
+const AKASH_PROVIDER = 'provider.hurricane.akash.pub'
+const WS_PORT = '31839'
+const API_PORT = '30635'
+
+const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+const WS_URL = isLocalhost 
+  ? 'ws://localhost:8080'
+  : `ws://${AKASH_PROVIDER}:${WS_PORT}`
+const API_URL = isLocalhost
+  ? 'http://localhost:8081'
+  : `http://${AKASH_PROVIDER}:${API_PORT}`
+const ICE_SERVERS = { 
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
+  ] 
+}
 
 const MicIcon = ({ muted }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -351,24 +363,55 @@ export default function App() {
 
   const createPeerConnection = useCallback((targetId) => {
     const pc = new RTCPeerConnection(ICE_SERVERS)
+    
     pc.onicecandidate = (e) => {
       if (e.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate, target: targetId }))
       }
     }
-    pc.ontrack = (e) => setRemoteStreams(prev => ({ ...prev, [targetId]: e.streams[0] }))
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current))
+    
+    pc.ontrack = (e) => {
+      console.log('Received remote track from', targetId, e.track.kind, 'enabled:', e.track.enabled)
+      setRemoteStreams(prev => ({ ...prev, [targetId]: e.streams[0] }))
     }
+    
+    pc.onconnectionstatechange = () => {
+      console.log('Connection state with', targetId, ':', pc.connectionState)
+    }
+    
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE connection state with', targetId, ':', pc.iceConnectionState)
+    }
+    
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        console.log('Adding local track to peer connection:', track.kind, 'enabled:', track.enabled)
+        pc.addTrack(track, localStreamRef.current)
+      })
+    } else {
+      console.warn('No local stream when creating peer connection for', targetId)
+    }
+    
     peerConnectionsRef.current[targetId] = pc
     return pc
   }, [])
 
   const handleOffer = useCallback(async (offer, fromId) => {
+    console.log('Handling offer from', fromId, 'localStream:', !!localStreamRef.current)
+    
+    // Check if we already have a connection to this peer
+    if (peerConnectionsRef.current[fromId]) {
+      console.log('Already have connection to', fromId, ', closing old one')
+      peerConnectionsRef.current[fromId].close()
+      delete peerConnectionsRef.current[fromId]
+    }
+    
     const pc = createPeerConnection(fromId)
+    
     await pc.setRemoteDescription(new RTCSessionDescription(offer))
     const answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
+    console.log('Sending answer to', fromId)
     wsRef.current?.send(JSON.stringify({ type: 'answer', answer, target: fromId }))
   }, [createPeerConnection])
 
@@ -383,9 +426,18 @@ export default function App() {
   }, [])
 
   const connectToParticipant = useCallback(async (targetId) => {
+    console.log('Connecting to participant:', targetId)
+    
+    // Check if we already have a connection
+    if (peerConnectionsRef.current[targetId]) {
+      console.log('Already have connection to', targetId)
+      return
+    }
+    
     const pc = createPeerConnection(targetId)
     const offer = await pc.createOffer()
     await pc.setLocalDescription(offer)
+    console.log('Sending offer to', targetId)
     wsRef.current?.send(JSON.stringify({ type: 'offer', offer, target: targetId }))
   }, [createPeerConnection])
 
@@ -395,13 +447,31 @@ export default function App() {
     wsRef.current = ws
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data)
-      if (data.type === 'joined') setOdId(data.odId)
+      if (data.type === 'joined') {
+        console.log('Joined with odId:', data.odId)
+        setOdId(data.odId)
+      }
       if (data.type === 'participants') setParticipants(data.participants)
-      if (data.type === 'existing-participants') data.participants.forEach(p => connectToParticipant(p.odId))
-      if (data.type === 'offer') handleOffer(data.offer, data.from)
-      if (data.type === 'answer') handleAnswer(data.answer, data.from)
+      if (data.type === 'new-participant') {
+        // Existing user: initiate WebRTC connection to the new participant
+        // Only the existing user initiates - the new user waits for the offer
+        if (localStreamRef.current && !peerConnectionsRef.current[data.participant.odId]) {
+          console.log('New participant joined, initiating connection to:', data.participant.name)
+          connectToParticipant(data.participant.odId)
+        }
+      }
+      // Remove existing-participants handler - let existing users initiate instead
+      if (data.type === 'offer') {
+        console.log('Received offer from:', data.from)
+        handleOffer(data.offer, data.from)
+      }
+      if (data.type === 'answer') {
+        console.log('Received answer from:', data.from)
+        handleAnswer(data.answer, data.from)
+      }
       if (data.type === 'ice-candidate') handleIceCandidate(data.candidate, data.from)
       if (data.type === 'chat') setChatMessages(prev => [...prev, data.message])
+      if (data.type === 'transcript') setTranscripts(prev => [...prev, data.transcript])
       if (data.type === 'user-left') {
         if (peerConnectionsRef.current[data.odId]) {
           peerConnectionsRef.current[data.odId].close()
@@ -553,6 +623,10 @@ export default function App() {
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
         setTranscripts(prev => [...prev, newTranscript])
+        // Broadcast transcript to all other participants
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'transcript', transcript: newTranscript }))
+        }
       }
     } catch (err) {
       console.error('Transcription error:', err)
